@@ -1,8 +1,10 @@
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from app.main import resolve_output_path
+from app.main import parse_args, resolve_output_path
 
 
 class TestMainOutputPath(unittest.TestCase):
@@ -12,6 +14,12 @@ class TestMainOutputPath(unittest.TestCase):
             path = resolve_output_path("abcd1234", str(custom))
             self.assertEqual(path, custom)
             self.assertTrue(path.parent.exists())
+
+    def test_parse_args_supports_json_flag(self) -> None:
+        argv = ["prog", "https://github.com/org/repo", "--json"]
+        with patch.object(sys, "argv", argv):
+            args = parse_args()
+        self.assertTrue(args.json)
 
 
 if __name__ == "__main__":

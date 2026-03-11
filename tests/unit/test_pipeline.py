@@ -52,9 +52,9 @@ class TestPipelineSecurityScore(unittest.TestCase):
 
 class TestPipelineDataQuality(unittest.TestCase):
     def test_data_quality_based_on_failed_steps(self) -> None:
-        completeness, confidence = compute_data_quality(["github_data_collector"], total_steps=3)
-        self.assertEqual(completeness, 0.67)
-        self.assertEqual(confidence, 0.57)
+        completeness, confidence = compute_data_quality(["github_data_collector"])
+        self.assertEqual(completeness, 0.65)
+        self.assertEqual(confidence, 0.55)
 
 
 if __name__ == "__main__":

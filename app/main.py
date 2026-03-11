@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Recompute and overwrite output even if artifact already exists",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print report JSON to stdout",
+    )
     return parser.parse_args()
 
 
@@ -48,18 +53,25 @@ def main() -> None:
 
     if output_path.exists() and not args.force:
         existing = json.loads(output_path.read_text(encoding="utf-8"))
-        print(f"Health Score: {existing.get('health_score')}")
-        print(f"Risk Level: {existing.get('risk_level')}")
-        print(f"Using existing report: {output_path}")
+        if args.json:
+            print(json.dumps(existing, indent=2))
+        else:
+            print(f"Health Score: {existing.get('health_score')}")
+            print(f"Risk Level: {existing.get('risk_level')}")
+            print(f"Using existing report: {output_path}")
         return
 
     # breakpoint()
     report = run_pipeline(repo_url=args.repo_url, config_path=args.config)
-    output_path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+    payload = report.to_dict()
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    print(f"Health Score: {report.health_score}")
-    print(f"Risk Level: {report.risk_level}")
-    print(f"Saved report: {output_path}")
+    if args.json:
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Health Score: {report.health_score}")
+        print(f"Risk Level: {report.risk_level}")
+        print(f"Saved report: {output_path}")
 
 
 if __name__ == "__main__":

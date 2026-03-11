@@ -53,13 +53,27 @@ def compute_security_score(security_metrics: SecurityMetrics) -> float:
     return max(0.0, min(100.0, round(score, 2)))
 
 
-def compute_data_quality(failed_steps: list[str], total_steps: int = 3) -> tuple[float, float]:
-    if total_steps <= 0:
-        raise ValueError("total_steps must be > 0")
+def compute_data_quality(
+    failed_steps: list[str],
+    step_weights: dict[str, float] | None = None,
+) -> tuple[float, float]:
+    weights = step_weights or {
+        "github_data_collector": 0.35,
+        "dependency_parser": 0.30,
+        "dependency_freshness": 0.15,
+        "vulnerability_scanner": 0.20,
+    }
+    total = sum(weights.values())
+    if total <= 0:
+        raise ValueError("step_weights must have a positive total weight")
+    if abs(total - 1.0) > 1e-9:
+        raise ValueError("step_weights must sum to 1.0")
 
-    failed_count = min(len(set(failed_steps)), total_steps)
-    data_completeness = round((total_steps - failed_count) / total_steps, 2)
+    failed_weight = 0.0
+    for step in set(failed_steps):
+        failed_weight += weights.get(step, 0.0)
 
+    data_completeness = round(max(0.0, min(1.0, 1.0 - failed_weight)), 2)
     # Confidence is slightly conservative vs completeness.
     confidence_score = round(max(0.0, min(1.0, data_completeness - 0.1)), 2)
     return data_completeness, confidence_score
