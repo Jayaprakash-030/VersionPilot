@@ -43,6 +43,18 @@ def compute_security_score(security_metrics: SecurityMetrics) -> float:
     return max(0.0, min(100.0, round(score, 2)))
 
 
+def compute_data_quality(failed_steps: list[str], total_steps: int = 3) -> tuple[float, float]:
+    if total_steps <= 0:
+        raise ValueError("total_steps must be > 0")
+
+    failed_count = min(len(set(failed_steps)), total_steps)
+    data_completeness = round((total_steps - failed_count) / total_steps, 2)
+
+    # Confidence is slightly conservative vs completeness.
+    confidence_score = round(max(0.0, min(1.0, data_completeness - 0.1)), 2)
+    return data_completeness, confidence_score
+
+
 def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> HealthReport:
     config = load_scoring_config(config_path)
     failed_steps = []
@@ -87,6 +99,7 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         security_score=security_score,
         config=config,
     )
+    data_completeness, confidence_score = compute_data_quality(failed_steps)
 
     run_id = build_run_id(repo_url=repo_url, config_version=config.version)
 
@@ -102,6 +115,6 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         security_metrics=security_metrics,
         failed_steps=failed_steps,
         failed_reasons=failed_reasons,
-        data_completeness=0.8 if failed_steps else 1.0,
-        confidence_score=0.5 if failed_steps else 0.6,
+        data_completeness=data_completeness,
+        confidence_score=confidence_score,
     )

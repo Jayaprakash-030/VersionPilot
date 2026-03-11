@@ -1,7 +1,7 @@
 import unittest
 
 from app.models import RepoMetrics
-from app.pipeline import compute_activity_score, compute_dependency_score, compute_security_score
+from app.pipeline import compute_activity_score, compute_data_quality, compute_dependency_score, compute_security_score
 
 
 class TestPipelineActivityScore(unittest.TestCase):
@@ -34,6 +34,13 @@ class TestPipelineSecurityScore(unittest.TestCase):
         metrics = SecurityMetrics(critical=1, high=1, medium=1, low=1)
         # 100 - (40 + 20 + 8 + 2) = 30
         self.assertEqual(compute_security_score(metrics), 30.0)
+
+
+class TestPipelineDataQuality(unittest.TestCase):
+    def test_data_quality_based_on_failed_steps(self) -> None:
+        completeness, confidence = compute_data_quality(["github_data_collector"], total_steps=3)
+        self.assertEqual(completeness, 0.67)
+        self.assertEqual(confidence, 0.57)
 
 
 if __name__ == "__main__":
