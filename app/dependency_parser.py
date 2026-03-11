@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import tomllib
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -38,9 +39,45 @@ def parse_requirements_text(requirements_text: str) -> list[str]:
     return list(dict.fromkeys(dependencies))
 
 
-def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> DependencyMetrics:
+def parse_pyproject_text(pyproject_text: str) -> list[str]:
+    try:
+        data = tomllib.loads(pyproject_text)
+    except tomllib.TOMLDecodeError as exc:
+        raise DependencyParserError("Could not parse pyproject.toml") from exc
+
+    dependencies: list[str] = []
+
+    # PEP 621 style: [project] dependencies = [...]
+    project_deps = data.get("project", {}).get("dependencies", [])
+    if isinstance(project_deps, list):
+        for dep in project_deps:
+            if isinstance(dep, str):
+                dependencies.append(dep)
+
+    # Poetry style: [tool.poetry.dependencies]
+    poetry_deps = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
+    if isinstance(poetry_deps, dict):
+        for name in poetry_deps.keys():
+            if name.lower() == "python":
+                continue
+            dependencies.append(str(name))
+
+    cleaned: list[str] = []
+    for dep in dependencies:
+        base = dep.split(";", 1)[0].strip()
+        for separator in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+            if separator in base:
+                base = base.split(separator, 1)[0].strip()
+                break
+        if base:
+            cleaned.append(base)
+
+    return list(dict.fromkeys(cleaned))
+
+
+def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> str:
     ref = parse_repo_url(repo_url)
-    api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}/contents/requirements.txt"
+    api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}/contents/{path}"
 
     request = Request(
         api_url,
@@ -54,26 +91,34 @@ def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> Depende
         with urlopen(request, timeout=timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    payload = run_with_retry(_operation)
+    encoded = payload.get("content", "")
+    if not encoded:
+        return ""
+    return base64.b64decode(encoded).decode("utf-8")
+
+
+def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> DependencyMetrics:
     try:
-        payload = run_with_retry(_operation)
+        requirements_text = _fetch_file_content(repo_url, "requirements.txt", timeout_seconds=timeout_seconds)
+        requirements_deps = parse_requirements_text(requirements_text)
+
+        pyproject_deps: list[str] = []
+        try:
+            pyproject_text = _fetch_file_content(repo_url, "pyproject.toml", timeout_seconds=timeout_seconds)
+            pyproject_deps = parse_pyproject_text(pyproject_text) if pyproject_text else []
+        except HTTPError as exc:
+            if exc.code != 404:
+                raise
+
+        all_deps = list(dict.fromkeys(requirements_deps + pyproject_deps))
+        return DependencyMetrics(total_dependencies=len(all_deps), outdated_dependencies=0)
     except HTTPError as exc:
         if exc.code == 404:
-            # Repo may not use requirements.txt; treat as zero deps for this simple step.
+            # Repo may not use either requirements.txt or pyproject.toml.
             return DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
         raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
     except RetryError as exc:
         raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
     except (URLError, TimeoutError) as exc:
         raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
-
-    encoded = payload.get("content", "")
-    if not encoded:
-        return DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
-
-    try:
-        decoded = base64.b64decode(encoded).decode("utf-8")
-    except Exception as exc:  # noqa: BLE001
-        raise DependencyParserError("Could not decode requirements.txt content") from exc
-
-    dependencies = parse_requirements_text(decoded)
-    return DependencyMetrics(total_dependencies=len(dependencies), outdated_dependencies=0)
