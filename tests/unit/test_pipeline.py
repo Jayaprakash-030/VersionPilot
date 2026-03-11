@@ -1,7 +1,7 @@
 import unittest
 
 from app.models import RepoMetrics
-from app.pipeline import compute_activity_score, compute_dependency_score
+from app.pipeline import compute_activity_score, compute_dependency_score, compute_security_score
 
 
 class TestPipelineActivityScore(unittest.TestCase):
@@ -25,6 +25,15 @@ class TestPipelineDependencyScore(unittest.TestCase):
 
         metrics = DependencyMetrics(total_dependencies=8, outdated_dependencies=2)
         self.assertEqual(compute_dependency_score(metrics), 75.0)
+
+
+class TestPipelineSecurityScore(unittest.TestCase):
+    def test_security_score_applies_severity_penalties(self) -> None:
+        from app.models import SecurityMetrics
+
+        metrics = SecurityMetrics(critical=1, high=1, medium=1, low=1)
+        # 100 - (40 + 20 + 8 + 2) = 30
+        self.assertEqual(compute_security_score(metrics), 30.0)
 
 
 if __name__ == "__main__":

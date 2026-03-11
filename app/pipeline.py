@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 
-from .dependency_parser import DependencyParserError, fetch_dependency_metrics
+from .dependency_parser import DependencyParserError, fetch_dependencies
 from .github_client import GitHubClientError, fetch_repo_metrics
 from .models import DependencyMetrics, HealthReport, RepoMetrics, SecurityMetrics
 from .risk_scoring import compute_health_score, load_scoring_config, risk_level_from_score
+from .vulnerability_scanner import VulnerabilityScannerError, fetch_security_metrics
 
 
 def build_run_id(repo_url: str, config_version: str) -> str:
@@ -30,9 +31,16 @@ def compute_dependency_score(dependency_metrics: DependencyMetrics) -> float:
     return max(0.0, min(100.0, round(score, 2)))
 
 
-def _mock_security_score() -> float:
-    # Keep security mocked in this step.
-    return 66.0
+def compute_security_score(security_metrics: SecurityMetrics) -> float:
+    # Weighted penalty by severity; clamp to [0, 100].
+    penalty = (
+        security_metrics.critical * 40
+        + security_metrics.high * 20
+        + security_metrics.medium * 8
+        + security_metrics.low * 2
+    )
+    score = 100.0 - float(penalty)
+    return max(0.0, min(100.0, round(score, 2)))
 
 
 def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> HealthReport:
@@ -52,14 +60,22 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         )
 
     try:
-        dependency_metrics = fetch_dependency_metrics(repo_url)
+        dependencies = fetch_dependencies(repo_url)
+        dependency_metrics = DependencyMetrics(total_dependencies=len(dependencies), outdated_dependencies=0)
     except DependencyParserError:
         failed_steps.append("dependency_parser")
+        dependencies = []
         dependency_metrics = DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
+
+    try:
+        security_metrics = fetch_security_metrics(dependencies)
+    except VulnerabilityScannerError:
+        failed_steps.append("vulnerability_scanner")
+        security_metrics = SecurityMetrics(critical=0, high=0, medium=0, low=0)
 
     activity_score = compute_activity_score(repo_metrics)
     dependency_score = compute_dependency_score(dependency_metrics)
-    security_score = _mock_security_score()
+    security_score = compute_security_score(security_metrics)
 
     health_score, breakdown = compute_health_score(
         activity_score=activity_score,
@@ -79,7 +95,7 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         breakdown=breakdown,
         repo_metrics=repo_metrics,
         dependency_metrics=dependency_metrics,
-        security_metrics=SecurityMetrics(critical=0, high=0, medium=0, low=0),
+        security_metrics=security_metrics,
         failed_steps=failed_steps,
         data_completeness=0.8 if failed_steps else 1.0,
         confidence_score=0.5 if failed_steps else 0.6,

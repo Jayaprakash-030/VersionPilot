@@ -107,7 +107,7 @@ def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> s
     return base64.b64decode(encoded).decode("utf-8")
 
 
-def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> DependencyMetrics:
+def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[str]:
     try:
         requirements_text = _fetch_file_content(repo_url, "requirements.txt", timeout_seconds=timeout_seconds)
         requirements_deps = parse_requirements_text(requirements_text)
@@ -120,14 +120,18 @@ def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> Depende
             if exc.code != 404:
                 raise
 
-        all_deps = list(dict.fromkeys(requirements_deps + pyproject_deps))
-        return DependencyMetrics(total_dependencies=len(all_deps), outdated_dependencies=0)
+        return list(dict.fromkeys(requirements_deps + pyproject_deps))
     except HTTPError as exc:
         if exc.code == 404:
             # Repo may not use either requirements.txt or pyproject.toml.
-            return DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
+            return []
         raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
     except RetryError as exc:
         raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
     except (URLError, TimeoutError) as exc:
         raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
+
+
+def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> DependencyMetrics:
+    dependencies = fetch_dependencies(repo_url, timeout_seconds=timeout_seconds)
+    return DependencyMetrics(total_dependencies=len(dependencies), outdated_dependencies=0)
