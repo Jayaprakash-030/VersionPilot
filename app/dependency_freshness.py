@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import re
+from packaging.version import InvalidVersion, Version
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -16,19 +16,17 @@ class DependencyFreshnessError(Exception):
 OUTDATED_GAP_POLICY = {"major"}
 
 
-def _normalize_version(version: str) -> tuple[int, ...]:
-    # Extract numeric components only (simple baseline, not full PEP 440 semantics).
-    numbers = re.findall(r"\d+", version)
-    if not numbers:
-        return tuple()
-    return tuple(int(n) for n in numbers)
-
-
 def _to_mmp(version: str) -> tuple[int, int, int] | None:
-    nums = _normalize_version(version)
-    if not nums:
+    try:
+        parsed = Version(version)
+    except InvalidVersion:
         return None
-    padded = nums + (0,) * (3 - len(nums))
+
+    release = parsed.release
+    if not release:
+        return None
+
+    padded = release + (0,) * (3 - len(release))
     return padded[0], padded[1], padded[2]
 
 
