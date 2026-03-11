@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
+from .dependency_freshness import DependencyFreshnessError, count_outdated_dependencies
 from .dependency_parser import DependencyParserError, fetch_dependencies
 from .github_client import GitHubClientError, fetch_repo_metrics
 from .models import DependencyMetrics, HealthReport, RepoMetrics, SecurityMetrics
@@ -75,7 +76,17 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
 
     try:
         dependencies = fetch_dependencies(repo_url)
-        dependency_metrics = DependencyMetrics(total_dependencies=len(dependencies), outdated_dependencies=0)
+        try:
+            outdated_dependencies = count_outdated_dependencies(dependencies)
+        except DependencyFreshnessError as exc:
+            failed_steps.append("dependency_freshness")
+            failed_reasons["dependency_freshness"] = str(exc)
+            outdated_dependencies = 0
+
+        dependency_metrics = DependencyMetrics(
+            total_dependencies=len(dependencies),
+            outdated_dependencies=outdated_dependencies,
+        )
     except DependencyParserError as exc:
         failed_steps.append("dependency_parser")
         failed_reasons["dependency_parser"] = str(exc)
