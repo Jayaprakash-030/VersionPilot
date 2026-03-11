@@ -137,34 +137,51 @@ def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> s
 
 
 def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[DependencySpec]:
+    requirements_deps: list[DependencySpec] = []
+    pyproject_deps: list[DependencySpec] = []
+    requirements_available = False
+    pyproject_available = False
+    errors: list[str] = []
+
     try:
         requirements_text = _fetch_file_content(repo_url, "requirements.txt", timeout_seconds=timeout_seconds)
         requirements_deps = parse_requirements_specs(requirements_text)
-
-        pyproject_deps: list[DependencySpec] = []
-        try:
-            pyproject_text = _fetch_file_content(repo_url, "pyproject.toml", timeout_seconds=timeout_seconds)
-            pyproject_deps = parse_pyproject_specs(pyproject_text) if pyproject_text else []
-        except HTTPError as exc:
-            if exc.code != 404:
-                raise
-
-        merged: list[DependencySpec] = []
-        seen_names: set[str] = set()
-        for spec in requirements_deps + pyproject_deps:
-            if spec.name not in seen_names:
-                merged.append(spec)
-                seen_names.add(spec.name)
-        return merged
+        requirements_available = True
     except HTTPError as exc:
-        if exc.code == 404:
-            # Repo may not use either requirements.txt or pyproject.toml.
-            return []
-        raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
-    except RetryError as exc:
-        raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
-    except (URLError, TimeoutError) as exc:
-        raise DependencyParserError(f"Failed to fetch requirements.txt: {exc}") from exc
+        if exc.code != 404:
+            errors.append(f"requirements.txt fetch failed: {exc}")
+    except (RetryError, URLError, TimeoutError) as exc:
+        errors.append(f"requirements.txt fetch failed: {exc}")
+
+    try:
+        pyproject_text = _fetch_file_content(repo_url, "pyproject.toml", timeout_seconds=timeout_seconds)
+        pyproject_available = True
+        if pyproject_text:
+            pyproject_deps = parse_pyproject_specs(pyproject_text)
+    except HTTPError as exc:
+        if exc.code != 404:
+            errors.append(f"pyproject.toml fetch failed: {exc}")
+    except DependencyParserError as exc:
+        errors.append(f"pyproject.toml parse failed: {exc}")
+    except (RetryError, URLError, TimeoutError) as exc:
+        errors.append(f"pyproject.toml fetch failed: {exc}")
+
+    merged: list[DependencySpec] = []
+    seen_names: set[str] = set()
+    for spec in requirements_deps + pyproject_deps:
+        if spec.name not in seen_names:
+            merged.append(spec)
+            seen_names.add(spec.name)
+
+    # If at least one dependency source is available, use what we have.
+    if requirements_available or pyproject_available:
+        return merged
+
+    # Neither file found: valid case, repo may not declare dependencies here.
+    if not errors:
+        return []
+
+    raise DependencyParserError("; ".join(errors))
 
 
 def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> DependencyMetrics:

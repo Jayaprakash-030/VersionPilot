@@ -1,7 +1,10 @@
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 from app.dependency_parser import (
     DependencyParserError,
+    fetch_dependencies,
     parse_pyproject_specs,
     parse_pyproject_text,
     parse_requirements_specs,
@@ -75,6 +78,22 @@ requests = "^2.31.0"
         specs = parse_pyproject_specs(text)
         self.assertEqual(specs[0].name, "requests")
         self.assertEqual(specs[0].version, "^2.31.0")
+
+    def test_fetch_dependencies_uses_available_source_when_other_fails(self) -> None:
+        def fake_fetch(_repo_url: str, path: str, timeout_seconds: int = 8) -> str:
+            if path == "requirements.txt":
+                raise HTTPError(url="", code=500, msg="server error", hdrs=None, fp=None)
+            if path == "pyproject.toml":
+                return """
+[project]
+dependencies = ["fastapi>=0.110", "uvicorn==0.30.0"]
+"""
+            return ""
+
+        with patch("app.dependency_parser._fetch_file_content", side_effect=fake_fetch):
+            deps = fetch_dependencies("https://github.com/org/repo")
+
+        self.assertEqual([d.name for d in deps], ["fastapi", "uvicorn"])
 
 
 if __name__ == "__main__":
