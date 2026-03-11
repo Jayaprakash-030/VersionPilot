@@ -13,7 +13,7 @@ class DependencyFreshnessError(Exception):
     pass
 
 
-OUTDATED_GAP_POLICY = {"major"}
+DEFAULT_OUTDATED_GAP_POLICY = frozenset({"major"})
 
 
 def _to_mmp(version: str) -> tuple[int, int, int] | None:
@@ -50,8 +50,9 @@ def _version_gap_level(current: str, latest: str) -> str:
     return "none"
 
 
-def _is_outdated(current: str, latest: str) -> bool:
-    return _version_gap_level(current, latest) in OUTDATED_GAP_POLICY
+def _is_outdated(current: str, latest: str, include_gap_levels: set[str] | frozenset[str] | None = None) -> bool:
+    policy = include_gap_levels if include_gap_levels is not None else DEFAULT_OUTDATED_GAP_POLICY
+    return _version_gap_level(current, latest) in policy
 
 
 def _fetch_latest_pypi_version(package_name: str, timeout_seconds: int = 8) -> str | None:
@@ -85,7 +86,12 @@ def _fetch_latest_pypi_version(package_name: str, timeout_seconds: int = 8) -> s
     return None
 
 
-def count_outdated_dependencies(dependencies: list[DependencySpec], timeout_seconds: int = 8) -> int:
+def count_outdated_dependencies(
+    dependencies: list[DependencySpec],
+    timeout_seconds: int = 8,
+    include_gap_levels: set[str] | frozenset[str] | None = None,
+) -> int:
+    policy = include_gap_levels if include_gap_levels is not None else DEFAULT_OUTDATED_GAP_POLICY
     outdated = 0
     for dep in dependencies:
         if not dep.version:
@@ -99,7 +105,7 @@ def count_outdated_dependencies(dependencies: list[DependencySpec], timeout_seco
         if not latest:
             continue
 
-        if _is_outdated(dep.version, latest):
+        if _is_outdated(dep.version, latest, include_gap_levels=policy):
             outdated += 1
 
     return outdated

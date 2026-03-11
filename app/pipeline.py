@@ -77,7 +77,10 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
     try:
         dependencies = fetch_dependencies(repo_url)
         try:
-            outdated_dependencies = count_outdated_dependencies(dependencies)
+            outdated_dependencies = count_outdated_dependencies(
+                dependencies,
+                include_gap_levels=config.include_gap_levels,
+            )
         except DependencyFreshnessError as exc:
             failed_steps.append("dependency_freshness")
             failed_reasons["dependency_freshness"] = str(exc)

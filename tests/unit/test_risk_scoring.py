@@ -13,6 +13,10 @@ class TestRiskScoring(unittest.TestCase):
         self.assertEqual(score1, score2)
         self.assertEqual(score1, 70.0)
 
+    def test_load_scoring_config_parses_freshness_policy(self) -> None:
+        config = load_scoring_config("config/scoring_v1.yaml")
+        self.assertEqual(config.include_gap_levels, frozenset({"major"}))
+
 
 if __name__ == "__main__":
     unittest.main()

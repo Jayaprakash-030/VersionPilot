@@ -17,6 +17,10 @@ class TestDependencyFreshness(unittest.TestCase):
         self.assertFalse(_is_outdated("2.31.0", "2.31.0"))
         self.assertFalse(_is_outdated("2.32.0", "2.31.0"))
 
+    def test_is_outdated_respects_custom_policy(self) -> None:
+        self.assertTrue(_is_outdated("2.30.0", "2.31.0", include_gap_levels={"major", "minor"}))
+        self.assertFalse(_is_outdated("2.30.1", "2.30.5", include_gap_levels={"major", "minor"}))
+
     def test_version_gap_handles_prerelease_strings(self) -> None:
         # PEP 440: rc is lower than final.
         self.assertEqual(_version_gap_level("1.0rc1", "1.0"), "none")

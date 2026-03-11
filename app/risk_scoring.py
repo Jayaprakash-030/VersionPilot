@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
+from typing import Dict, FrozenSet
 
 from .models import ScoreBreakdown
 
@@ -11,12 +12,15 @@ from .models import ScoreBreakdown
 class ScoringConfig:
     version: str
     weights: Dict[str, float]
+    include_gap_levels: FrozenSet[str]
 
 
 def _parse_simple_yaml(path: Path) -> ScoringConfig:
     version = ""
     weights: Dict[str, float] = {}
+    include_gap_levels: set[str] = {"major"}
     in_weights = False
+    in_freshness_policy = False
 
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.rstrip()
@@ -29,11 +33,31 @@ def _parse_simple_yaml(path: Path) -> ScoringConfig:
 
         if line.startswith("weights:"):
             in_weights = True
+            in_freshness_policy = False
+            continue
+
+        if line.startswith("freshness_policy:"):
+            in_freshness_policy = True
+            in_weights = False
             continue
 
         if in_weights and line.startswith("  ") and ":" in line:
             key, value = line.strip().split(":", 1)
             weights[key.strip()] = float(value.strip())
+            continue
+
+        if in_freshness_policy and line.startswith("  include_gap_levels:"):
+            _, raw_value = line.strip().split(":", 1)
+            raw_value = raw_value.strip()
+            try:
+                parsed = ast.literal_eval(raw_value)
+            except (ValueError, SyntaxError) as exc:
+                raise ValueError("freshness_policy.include_gap_levels must be a list literal") from exc
+
+            if not isinstance(parsed, list) or not all(isinstance(v, str) for v in parsed):
+                raise ValueError("freshness_policy.include_gap_levels must be a list of strings")
+
+            include_gap_levels = {v.strip().lower() for v in parsed if v.strip()}
 
     if not version:
         raise ValueError("Missing 'version' in scoring config")
@@ -46,7 +70,15 @@ def _parse_simple_yaml(path: Path) -> ScoringConfig:
     if abs(total - 1.0) > 1e-9:
         raise ValueError("Weights must sum to 1.0")
 
-    return ScoringConfig(version=version, weights=weights)
+    allowed_levels = {"major", "minor", "patch"}
+    if not include_gap_levels.issubset(allowed_levels):
+        raise ValueError("include_gap_levels must be subset of: major, minor, patch")
+
+    return ScoringConfig(
+        version=version,
+        weights=weights,
+        include_gap_levels=frozenset(include_gap_levels),
+    )
 
 
 def load_scoring_config(config_path: str = "config/scoring_v1.yaml") -> ScoringConfig:
