@@ -1,0 +1,8 @@
+.vscode/
+Plan.md
+abc.txt
+artifacts/
+**/__pycache__
+config/
+data/
+eval/
