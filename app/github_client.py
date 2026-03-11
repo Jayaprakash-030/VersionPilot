@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from .models import RepoMetrics
+from .retry import RetryError, run_with_retry
 
 
 class GitHubClientError(Exception):
@@ -52,9 +53,14 @@ def fetch_repo_metrics(repo_url: str, timeout_seconds: int = 8) -> RepoMetrics:
         },
     )
 
-    try:
+    def _operation() -> dict:
         with urlopen(request, timeout=timeout_seconds) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
+
+    try:
+        payload = run_with_retry(_operation)
+    except RetryError as exc:
+        raise GitHubClientError(f"Failed to fetch repo metadata: {exc}") from exc
     except (HTTPError, URLError, TimeoutError) as exc:
         raise GitHubClientError(f"Failed to fetch repo metadata: {exc}") from exc
 

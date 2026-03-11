@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
+from .dependency_parser import DependencyParserError, fetch_dependency_metrics
 from .github_client import GitHubClientError, fetch_repo_metrics
 from .models import DependencyMetrics, HealthReport, RepoMetrics, SecurityMetrics
 from .risk_scoring import compute_health_score, load_scoring_config, risk_level_from_score
@@ -50,7 +51,12 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
             closed_issues=0,
         )
 
-    dependency_metrics = DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
+    try:
+        dependency_metrics = fetch_dependency_metrics(repo_url)
+    except DependencyParserError:
+        failed_steps.append("dependency_parser")
+        dependency_metrics = DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
+
     activity_score = compute_activity_score(repo_metrics)
     dependency_score = compute_dependency_score(dependency_metrics)
     security_score = _mock_security_score()
