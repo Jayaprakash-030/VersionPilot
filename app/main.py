@@ -53,6 +53,7 @@ def main() -> None:
         print(f"Using existing report: {output_path}")
         return
 
+    # breakpoint()
     report = run_pipeline(repo_url=args.repo_url, config_path=args.config)
     output_path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
 
