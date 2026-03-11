@@ -54,6 +54,15 @@ def parse_pyproject_text(pyproject_text: str) -> list[str]:
             if isinstance(dep, str):
                 dependencies.append(dep)
 
+    # PEP 621 optional dependencies: [project.optional-dependencies]
+    optional_deps = data.get("project", {}).get("optional-dependencies", {})
+    if isinstance(optional_deps, dict):
+        for dep_list in optional_deps.values():
+            if isinstance(dep_list, list):
+                for dep in dep_list:
+                    if isinstance(dep, str):
+                        dependencies.append(dep)
+
     # Poetry style: [tool.poetry.dependencies]
     poetry_deps = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
     if isinstance(poetry_deps, dict):
