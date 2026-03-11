@@ -15,6 +15,7 @@ class TestPipelineIntegration(unittest.TestCase):
             stars=120,
             forks=30,
             last_commit_days=10,
+            last_release_days=30,
             open_issues=2,
             closed_issues=20,
         )
@@ -32,15 +33,15 @@ class TestPipelineIntegration(unittest.TestCase):
         self.assertEqual(report.security_metrics.high, 1)
         self.assertEqual(report.security_metrics.medium, 1)
 
-        # activity = 100 - 10 - (2*2) = 86
-        self.assertEqual(report.breakdown.activity_score, 86.0)
+        # activity = 100 - 10 - (30*0.2) - (2*2) + ((20/22)*15) = 93.64
+        self.assertEqual(report.breakdown.activity_score, 93.64)
         # dependency score = 50 (1 outdated / 2 total)
         self.assertEqual(report.breakdown.dependency_score, 50.0)
         # security penalty = 20 + 8 = 28 => 72
         self.assertEqual(report.breakdown.security_score, 72.0)
 
-        # weighted: 86*0.3 + 50*0.4 + 72*0.3 = 67.4
-        self.assertEqual(report.health_score, 67.4)
+        # weighted: 93.64*0.3 + 50*0.4 + 72*0.3 = 69.69
+        self.assertEqual(report.health_score, 69.69)
         self.assertEqual(report.risk_level, "Medium")
         self.assertEqual(report.data_completeness, 1.0)
         self.assertEqual(report.confidence_score, 0.9)

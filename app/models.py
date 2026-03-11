@@ -9,6 +9,7 @@ class RepoMetrics:
     stars: int
     forks: int
     last_commit_days: int
+    last_release_days: int | None
     open_issues: int
     closed_issues: int
 

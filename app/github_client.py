@@ -41,6 +41,63 @@ def _days_since(iso_timestamp: str) -> int:
     return max(0, delta.days)
 
 
+def _fetch_last_release_days(ref: RepoRef, timeout_seconds: int) -> int | None:
+    release_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}/releases/latest"
+    release_request = Request(
+        release_url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "ai-health-inspector/0.1",
+        },
+    )
+
+    def _operation() -> dict:
+        with urlopen(release_request, timeout=timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    try:
+        payload = run_with_retry(_operation)
+    except HTTPError as exc:
+        if exc.code == 404:
+            return None
+        return None
+    except (RetryError, URLError, TimeoutError):
+        return None
+
+    published_at = payload.get("published_at")
+    if not published_at:
+        return None
+    return _days_since(published_at)
+
+
+def _fetch_closed_issues_count(ref: RepoRef, timeout_seconds: int) -> int | None:
+    search_url = (
+        "https://api.github.com/search/issues"
+        f"?q=repo:{ref.owner}/{ref.repo}+is:issue+is:closed&per_page=1"
+    )
+    search_request = Request(
+        search_url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "ai-health-inspector/0.1",
+        },
+    )
+
+    def _operation() -> dict:
+        with urlopen(search_request, timeout=timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    try:
+        payload = run_with_retry(_operation)
+    except (HTTPError, RetryError, URLError, TimeoutError):
+        return None
+
+    total_count = payload.get("total_count")
+    if isinstance(total_count, int) and total_count >= 0:
+        return total_count
+    return None
+
+
 def fetch_repo_metrics(repo_url: str, timeout_seconds: int = 8) -> RepoMetrics:
     ref = parse_repo_url(repo_url)
     api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}"
@@ -68,10 +125,14 @@ def fetch_repo_metrics(repo_url: str, timeout_seconds: int = 8) -> RepoMetrics:
     if not pushed_at:
         raise GitHubClientError("GitHub response missing 'pushed_at'")
 
+    last_release_days = _fetch_last_release_days(ref, timeout_seconds=timeout_seconds)
+    closed_issues = _fetch_closed_issues_count(ref, timeout_seconds=timeout_seconds)
+
     return RepoMetrics(
         stars=int(payload.get("stargazers_count", 0)),
         forks=int(payload.get("forks_count", 0)),
         last_commit_days=_days_since(pushed_at),
+        last_release_days=last_release_days,
         open_issues=int(payload.get("open_issues_count", 0)),
-        closed_issues=0,
+        closed_issues=closed_issues if closed_issues is not None else 0,
     )

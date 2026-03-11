@@ -10,12 +10,26 @@ class TestPipelineActivityScore(unittest.TestCase):
             stars=0,
             forks=0,
             last_commit_days=42,
+            last_release_days=None,
             open_issues=5,
             closed_issues=0,
         )
 
         # 100 - 42 - (5*2) = 48
         self.assertEqual(compute_activity_score(metrics), 48.0)
+
+    def test_activity_score_adds_issue_resolution_bonus(self) -> None:
+        metrics = RepoMetrics(
+            stars=0,
+            forks=0,
+            last_commit_days=10,
+            last_release_days=None,
+            open_issues=5,
+            closed_issues=15,
+        )
+
+        # Base: 100 - 10 - (5*2) = 80; resolution bonus: (15/20)*15 = 11.25 -> 91.25
+        self.assertEqual(compute_activity_score(metrics), 91.25)
 
 
 class TestPipelineDependencyScore(unittest.TestCase):

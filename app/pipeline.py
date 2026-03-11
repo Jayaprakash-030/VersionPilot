@@ -16,10 +16,19 @@ def build_run_id(repo_url: str, config_version: str) -> str:
 
 
 def compute_activity_score(repo_metrics: RepoMetrics) -> float:
-    # Simple deterministic baseline: stale repos and many open issues reduce activity score.
+    # Simple deterministic baseline: stale commits/releases and open issues reduce activity score.
     recency_penalty = float(min(repo_metrics.last_commit_days, 100))
+    release_penalty = 0.0
+    if repo_metrics.last_release_days is not None:
+        release_penalty = float(min(repo_metrics.last_release_days, 120)) * 0.2
     open_issue_penalty = float(min(repo_metrics.open_issues * 2, 40))
-    score = 100.0 - recency_penalty - open_issue_penalty
+    resolution_bonus = 0.0
+    total_issues = repo_metrics.open_issues + repo_metrics.closed_issues
+    if total_issues > 0:
+        resolution_rate = repo_metrics.closed_issues / total_issues
+        resolution_bonus = round(resolution_rate * 15.0, 2)
+
+    score = 100.0 - recency_penalty - release_penalty - open_issue_penalty + resolution_bonus
     return max(0.0, min(100.0, round(score, 2)))
 
 
@@ -70,6 +79,7 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
             stars=0,
             forks=0,
             last_commit_days=0,
+            last_release_days=None,
             open_issues=0,
             closed_issues=0,
         )
