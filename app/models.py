@@ -20,6 +20,12 @@ class DependencyMetrics:
 
 
 @dataclass(frozen=True)
+class DependencySpec:
+    name: str
+    version: str | None = None
+
+
+@dataclass(frozen=True)
 class SecurityMetrics:
     critical: int
     high: int

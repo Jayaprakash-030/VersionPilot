@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .github_client import parse_repo_url
-from .models import DependencyMetrics
+from .models import DependencyMetrics, DependencySpec
 from .retry import RetryError, run_with_retry
 
 
@@ -15,8 +15,26 @@ class DependencyParserError(Exception):
     pass
 
 
-def parse_requirements_text(requirements_text: str) -> list[str]:
-    dependencies: list[str] = []
+def _extract_name_version(dep: str) -> DependencySpec | None:
+    base = dep.split(";", 1)[0].strip()
+    if not base:
+        return None
+
+    for separator in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+        if separator in base:
+            name, version = base.split(separator, 1)
+            name = name.strip()
+            version = version.strip() or None
+            if name:
+                return DependencySpec(name=name, version=version)
+            return None
+
+    return DependencySpec(name=base, version=None)
+
+
+def parse_requirements_specs(requirements_text: str) -> list[DependencySpec]:
+    specs: list[DependencySpec] = []
+    seen_names: set[str] = set()
 
     for raw_line in requirements_text.splitlines():
         line = raw_line.strip()
@@ -26,33 +44,39 @@ def parse_requirements_text(requirements_text: str) -> list[str]:
         if line.startswith(("-r", "--requirement", "-c", "--constraint", "-e", "--editable")):
             continue
 
-        base = line.split(";", 1)[0].strip()
-        for separator in ("==", ">=", "<=", "~=", "!=", ">", "<"):
-            if separator in base:
-                base = base.split(separator, 1)[0].strip()
-                break
+        spec = _extract_name_version(line)
+        if spec and spec.name not in seen_names:
+            specs.append(spec)
+            seen_names.add(spec.name)
 
-        if base:
-            dependencies.append(base)
-
-    # Deduplicate while preserving order.
-    return list(dict.fromkeys(dependencies))
+    return specs
 
 
-def parse_pyproject_text(pyproject_text: str) -> list[str]:
+def parse_requirements_text(requirements_text: str) -> list[str]:
+    return [spec.name for spec in parse_requirements_specs(requirements_text)]
+
+
+def parse_pyproject_specs(pyproject_text: str) -> list[DependencySpec]:
     try:
         data = tomllib.loads(pyproject_text)
     except tomllib.TOMLDecodeError as exc:
         raise DependencyParserError("Could not parse pyproject.toml") from exc
 
-    dependencies: list[str] = []
+    specs: list[DependencySpec] = []
+    seen_names: set[str] = set()
+
+    def _add_raw_dep(raw_dep: str) -> None:
+        spec = _extract_name_version(raw_dep)
+        if spec and spec.name not in seen_names:
+            specs.append(spec)
+            seen_names.add(spec.name)
 
     # PEP 621 style: [project] dependencies = [...]
     project_deps = data.get("project", {}).get("dependencies", [])
     if isinstance(project_deps, list):
         for dep in project_deps:
             if isinstance(dep, str):
-                dependencies.append(dep)
+                _add_raw_dep(dep)
 
     # PEP 621 optional dependencies: [project.optional-dependencies]
     optional_deps = data.get("project", {}).get("optional-dependencies", {})
@@ -61,27 +85,32 @@ def parse_pyproject_text(pyproject_text: str) -> list[str]:
             if isinstance(dep_list, list):
                 for dep in dep_list:
                     if isinstance(dep, str):
-                        dependencies.append(dep)
+                        _add_raw_dep(dep)
 
     # Poetry style: [tool.poetry.dependencies]
     poetry_deps = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
     if isinstance(poetry_deps, dict):
-        for name in poetry_deps.keys():
+        for name, value in poetry_deps.items():
             if name.lower() == "python":
                 continue
-            dependencies.append(str(name))
 
-    cleaned: list[str] = []
-    for dep in dependencies:
-        base = dep.split(";", 1)[0].strip()
-        for separator in ("==", ">=", "<=", "~=", "!=", ">", "<"):
-            if separator in base:
-                base = base.split(separator, 1)[0].strip()
-                break
-        if base:
-            cleaned.append(base)
+            version: str | None = None
+            if isinstance(value, str):
+                version = value.strip() or None
+            elif isinstance(value, dict):
+                raw_version = value.get("version")
+                if isinstance(raw_version, str):
+                    version = raw_version.strip() or None
 
-    return list(dict.fromkeys(cleaned))
+            if name not in seen_names:
+                specs.append(DependencySpec(name=str(name), version=version))
+                seen_names.add(str(name))
+
+    return specs
+
+
+def parse_pyproject_text(pyproject_text: str) -> list[str]:
+    return [spec.name for spec in parse_pyproject_specs(pyproject_text)]
 
 
 def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> str:
@@ -107,20 +136,26 @@ def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> s
     return base64.b64decode(encoded).decode("utf-8")
 
 
-def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[str]:
+def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[DependencySpec]:
     try:
         requirements_text = _fetch_file_content(repo_url, "requirements.txt", timeout_seconds=timeout_seconds)
-        requirements_deps = parse_requirements_text(requirements_text)
+        requirements_deps = parse_requirements_specs(requirements_text)
 
-        pyproject_deps: list[str] = []
+        pyproject_deps: list[DependencySpec] = []
         try:
             pyproject_text = _fetch_file_content(repo_url, "pyproject.toml", timeout_seconds=timeout_seconds)
-            pyproject_deps = parse_pyproject_text(pyproject_text) if pyproject_text else []
+            pyproject_deps = parse_pyproject_specs(pyproject_text) if pyproject_text else []
         except HTTPError as exc:
             if exc.code != 404:
                 raise
 
-        return list(dict.fromkeys(requirements_deps + pyproject_deps))
+        merged: list[DependencySpec] = []
+        seen_names: set[str] = set()
+        for spec in requirements_deps + pyproject_deps:
+            if spec.name not in seen_names:
+                merged.append(spec)
+                seen_names.add(spec.name)
+        return merged
     except HTTPError as exc:
         if exc.code == 404:
             # Repo may not use either requirements.txt or pyproject.toml.

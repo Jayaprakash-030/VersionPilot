@@ -1,6 +1,12 @@
 import unittest
 
-from app.dependency_parser import DependencyParserError, parse_pyproject_text, parse_requirements_text
+from app.dependency_parser import (
+    DependencyParserError,
+    parse_pyproject_specs,
+    parse_pyproject_text,
+    parse_requirements_specs,
+    parse_requirements_text,
+)
 
 
 class TestDependencyParser(unittest.TestCase):
@@ -49,6 +55,26 @@ dependencies = ["fastapi"]
 """
         with self.assertRaises(DependencyParserError):
             parse_pyproject_text(invalid_text)
+
+    def test_parse_requirements_specs_extracts_version_when_present(self) -> None:
+        text = "requests==2.31.0\nnumpy>=1.26\nflask\n"
+        specs = parse_requirements_specs(text)
+        self.assertEqual(specs[0].name, "requests")
+        self.assertEqual(specs[0].version, "2.31.0")
+        self.assertEqual(specs[1].name, "numpy")
+        self.assertEqual(specs[1].version, "1.26")
+        self.assertEqual(specs[2].name, "flask")
+        self.assertIsNone(specs[2].version)
+
+    def test_parse_pyproject_specs_extracts_poetry_version(self) -> None:
+        text = """
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.31.0"
+"""
+        specs = parse_pyproject_specs(text)
+        self.assertEqual(specs[0].name, "requests")
+        self.assertEqual(specs[0].version, "^2.31.0")
 
 
 if __name__ == "__main__":
