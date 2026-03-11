@@ -52,6 +52,7 @@ class HealthReport:
     dependency_metrics: DependencyMetrics
     security_metrics: SecurityMetrics
     failed_steps: List[str]
+    failed_reasons: Dict[str, str]
     data_completeness: float
     confidence_score: float
 

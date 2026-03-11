@@ -46,11 +46,13 @@ def compute_security_score(security_metrics: SecurityMetrics) -> float:
 def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> HealthReport:
     config = load_scoring_config(config_path)
     failed_steps = []
+    failed_reasons: dict[str, str] = {}
 
     try:
         repo_metrics = fetch_repo_metrics(repo_url)
-    except GitHubClientError:
+    except GitHubClientError as exc:
         failed_steps.append("github_data_collector")
+        failed_reasons["github_data_collector"] = str(exc)
         repo_metrics = RepoMetrics(
             stars=0,
             forks=0,
@@ -62,15 +64,17 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
     try:
         dependencies = fetch_dependencies(repo_url)
         dependency_metrics = DependencyMetrics(total_dependencies=len(dependencies), outdated_dependencies=0)
-    except DependencyParserError:
+    except DependencyParserError as exc:
         failed_steps.append("dependency_parser")
+        failed_reasons["dependency_parser"] = str(exc)
         dependencies = []
         dependency_metrics = DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
 
     try:
         security_metrics = fetch_security_metrics(dependencies)
-    except VulnerabilityScannerError:
+    except VulnerabilityScannerError as exc:
         failed_steps.append("vulnerability_scanner")
+        failed_reasons["vulnerability_scanner"] = str(exc)
         security_metrics = SecurityMetrics(critical=0, high=0, medium=0, low=0)
 
     activity_score = compute_activity_score(repo_metrics)
@@ -97,6 +101,7 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         dependency_metrics=dependency_metrics,
         security_metrics=security_metrics,
         failed_steps=failed_steps,
+        failed_reasons=failed_reasons,
         data_completeness=0.8 if failed_steps else 1.0,
         confidence_score=0.5 if failed_steps else 0.6,
     )
