@@ -93,7 +93,11 @@ def count_outdated_dependencies(dependencies: list[DependencySpec], timeout_seco
         if not dep.version:
             continue
 
-        latest = _fetch_latest_pypi_version(dep.name, timeout_seconds=timeout_seconds)
+        try:
+            latest = _fetch_latest_pypi_version(dep.name, timeout_seconds=timeout_seconds)
+        except DependencyFreshnessError:
+            # Skip single-package lookup failures and continue evaluating others.
+            continue
         if not latest:
             continue
 

@@ -60,7 +60,7 @@ dependencies = ["fastapi"]
             parse_pyproject_text(invalid_text)
 
     def test_parse_requirements_specs_extracts_version_when_present(self) -> None:
-        text = "requests==2.31.0\nnumpy>=1.26\nflask\n"
+        text = "requests==2.31.0\nnumpy>=1.26\nflask\nuvicorn[standard]==0.34.2\n"
         specs = parse_requirements_specs(text)
         self.assertEqual(specs[0].name, "requests")
         self.assertEqual(specs[0].version, "2.31.0")
@@ -68,6 +68,8 @@ dependencies = ["fastapi"]
         self.assertEqual(specs[1].version, "1.26")
         self.assertEqual(specs[2].name, "flask")
         self.assertIsNone(specs[2].version)
+        self.assertEqual(specs[3].name, "uvicorn")
+        self.assertEqual(specs[3].version, "0.34.2")
 
     def test_parse_pyproject_specs_extracts_poetry_version(self) -> None:
         text = """

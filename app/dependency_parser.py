@@ -26,8 +26,13 @@ def _extract_name_version(dep: str) -> DependencySpec | None:
             name = name.strip()
             version = version.strip() or None
             if name:
+                if "[" in name:
+                    name = name.split("[", 1)[0].strip()
                 return DependencySpec(name=name, version=version)
             return None
+
+    if "[" in base:
+        base = base.split("[", 1)[0].strip()
 
     return DependencySpec(name=base, version=None)
 
