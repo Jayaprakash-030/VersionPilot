@@ -45,15 +45,27 @@ def summarize(results: list[dict]) -> dict:
         return {
             "total_repos": 0,
             "avg_health_score": 0.0,
+            "avg_data_completeness": 0.0,
+            "avg_confidence_score": 0.0,
             "risk_distribution": {"Low": 0, "Medium": 0, "High": 0},
             "runs_with_failures": 0,
+            "failed_step_distribution": {},
         }
 
     total = len(results)
     avg_score = round(sum(float(r["health_score"]) for r in results) / total, 2)
+    avg_data_completeness = round(
+        sum(float(r.get("data_completeness", 0.0)) for r in results) / total,
+        2,
+    )
+    avg_confidence_score = round(
+        sum(float(r.get("confidence_score", 0.0)) for r in results) / total,
+        2,
+    )
 
     risk_distribution = {"Low": 0, "Medium": 0, "High": 0}
     runs_with_failures = 0
+    failed_step_distribution: dict[str, int] = {}
 
     for r in results:
         risk = r.get("risk_level", "Medium")
@@ -61,14 +73,20 @@ def summarize(results: list[dict]) -> dict:
             risk = "Medium"
         risk_distribution[risk] += 1
 
-        if r.get("failed_steps"):
+        failed_steps = r.get("failed_steps", [])
+        if failed_steps:
             runs_with_failures += 1
+            for step in failed_steps:
+                failed_step_distribution[step] = failed_step_distribution.get(step, 0) + 1
 
     return {
         "total_repos": total,
         "avg_health_score": avg_score,
+        "avg_data_completeness": avg_data_completeness,
+        "avg_confidence_score": avg_confidence_score,
         "risk_distribution": risk_distribution,
         "runs_with_failures": runs_with_failures,
+        "failed_step_distribution": failed_step_distribution,
     }
 
 
