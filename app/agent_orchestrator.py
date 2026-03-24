@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from .changelog_analyzer import ChangelogAnalyzer
 from .deprecated_api_scanner import DeprecatedAPIScanner, DeprecatedAPIScannerError
+from .migration_planner import MigrationPlanner
 from .pipeline import run_pipeline
 
 
@@ -53,6 +54,7 @@ class AgentOrchestrator:
             {"agent": "scoring_agent", "action": "compute_health_score"},
             {"agent": "deprecation_agent", "action": "scan_deprecated_api_usage"},
             {"agent": "changelog_agent", "action": "analyze_breaking_changes"},
+            {"agent": "migration_agent", "action": "generate_migration_plan"},
             {"agent": "report_agent", "action": "assemble_report"},
         ]
 
@@ -106,6 +108,11 @@ class AgentOrchestrator:
         else:
             changelog_analysis_status = "skipped_no_notes_file"
 
+        migration_plan = MigrationPlanner().generate_plan(
+            deprecated_findings=deprecated_findings,
+            breaking_change_analysis=breaking_change_analysis,
+        )
+
         return {
             "mode": "agent",
             "agent_plan": {
@@ -120,5 +127,6 @@ class AgentOrchestrator:
             "breaking_change_analysis": breaking_change_analysis,
             "changelog_analysis_status": changelog_analysis_status,
             "changelog_analysis_error": changelog_analysis_error,
+            "migration_plan": migration_plan,
             "report": report.to_dict(),
         }
