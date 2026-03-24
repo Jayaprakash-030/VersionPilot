@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.agent_orchestrator import AgentOrchestrator
 
@@ -48,6 +49,21 @@ class TestAgentOrchestrator(unittest.TestCase):
             self.assertEqual(analysis["finding_count"], 2)
             self.assertEqual(analysis["severity_counts"]["high"], 1)
             self.assertEqual(analysis["severity_counts"]["medium"], 1)
+
+    @patch("app.agent_orchestrator.fetch_release_notes")
+    def test_agent_mode_auto_fetches_release_notes_when_notes_file_missing(self, mock_fetch) -> None:
+        mock_fetch.return_value = "- BREAKING: Removed old hook\n- Deprecated setup path\n"
+        orchestrator = AgentOrchestrator()
+
+        result = orchestrator.analyze_repository(
+            repo_url="https://github.com/org/repo",
+            notes_file=None,
+        )
+
+        self.assertEqual(result["changelog_analysis_status"], "ok")
+        self.assertEqual(result["changelog_source"], "github_latest_release")
+        analysis = result["breaking_change_analysis"]
+        self.assertEqual(analysis["finding_count"], 2)
 
 
 if __name__ == "__main__":

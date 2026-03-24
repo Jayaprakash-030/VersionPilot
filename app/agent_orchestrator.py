@@ -7,6 +7,7 @@ from .changelog_analyzer import ChangelogAnalyzer
 from .deprecated_api_scanner import DeprecatedAPIScanner, DeprecatedAPIScannerError
 from .migration_planner import MigrationPlanner
 from .pipeline import run_pipeline
+from .release_notes_fetcher import ReleaseNotesFetcherError, fetch_release_notes
 
 
 class AgentOrchestrator:
@@ -64,6 +65,7 @@ class AgentOrchestrator:
         deprecation_scan_error = ""
         changelog_analysis_status = "skipped"
         changelog_analysis_error = ""
+        changelog_source = "none"
         breaking_change_analysis: dict[str, Any] = {
             "finding_count": 0,
             "severity_counts": {"high": 0, "medium": 0, "low": 0},
@@ -90,6 +92,7 @@ class AgentOrchestrator:
 
         if notes_file:
             changelog_analysis_status = "ok"
+            changelog_source = "notes_file"
             try:
                 notes_text = Path(notes_file).read_text(encoding="utf-8")
                 analyzer = ChangelogAnalyzer()
@@ -106,7 +109,24 @@ class AgentOrchestrator:
                 changelog_analysis_status = "error"
                 changelog_analysis_error = str(exc)
         else:
-            changelog_analysis_status = "skipped_no_notes_file"
+            try:
+                fetched_notes = fetch_release_notes(repo_url=repo_url)
+                if fetched_notes:
+                    changelog_analysis_status = "ok"
+                    changelog_source = "github_latest_release"
+                    analyzer = ChangelogAnalyzer()
+                    breaking_change_analysis = analyzer.analyze_release_notes(
+                        package_name="auto-fetched",
+                        from_version="unknown",
+                        to_version="unknown",
+                        notes_text=fetched_notes,
+                    )
+                else:
+                    changelog_analysis_status = "skipped_no_notes_available"
+            except ReleaseNotesFetcherError as exc:
+                changelog_analysis_status = "error"
+                changelog_analysis_error = str(exc)
+                changelog_source = "github_latest_release"
 
         migration_plan = MigrationPlanner().generate_plan(
             deprecated_findings=deprecated_findings,
@@ -127,6 +147,7 @@ class AgentOrchestrator:
             "breaking_change_analysis": breaking_change_analysis,
             "changelog_analysis_status": changelog_analysis_status,
             "changelog_analysis_error": changelog_analysis_error,
+            "changelog_source": changelog_source,
             "migration_plan": migration_plan,
             "report": report.to_dict(),
         }
