@@ -4,10 +4,15 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .changelog_analyzer import ChangelogAnalyzer
+from .dependency_parser import DependencyParserError, fetch_dependencies
 from .deprecated_api_scanner import DeprecatedAPIScanner, DeprecatedAPIScannerError
 from .migration_planner import MigrationPlanner
 from .pipeline import run_pipeline
-from .release_notes_fetcher import ReleaseNotesFetcherError, fetch_release_notes
+from .release_notes_fetcher import (
+    ReleaseNotesFetcherError,
+    fetch_dependency_release_notes,
+    fetch_release_notes,
+)
 
 
 class AgentOrchestrator:
@@ -53,6 +58,7 @@ class AgentOrchestrator:
             {"agent": "dependency_agent", "action": "collect_dependency_signals"},
             {"agent": "security_agent", "action": "collect_security_signals"},
             {"agent": "scoring_agent", "action": "compute_health_score"},
+            {"agent": "dependency_release_agent", "action": "fetch_dependency_release_notes"},
             {"agent": "deprecation_agent", "action": "scan_deprecated_api_usage"},
             {"agent": "changelog_agent", "action": "analyze_breaking_changes"},
             {"agent": "migration_agent", "action": "generate_migration_plan"},
@@ -66,6 +72,15 @@ class AgentOrchestrator:
         changelog_analysis_status = "skipped"
         changelog_analysis_error = ""
         changelog_source = "none"
+        dependency_release_notes_status = "skipped"
+        dependency_release_notes_error = ""
+        dependency_release_notes_preview: dict[str, Any] = {
+            "package": "",
+            "status": "not_attempted",
+            "source": "none",
+            "latest_version": None,
+            "notes_text": "",
+        }
         breaking_change_analysis: dict[str, Any] = {
             "finding_count": 0,
             "severity_counts": {"high": 0, "medium": 0, "low": 0},
@@ -89,6 +104,20 @@ class AgentOrchestrator:
             deprecation_scan_status = "skipped_no_repo_path"
 
         deprecated_risk_summary = self._build_deprecated_risk_summary(deprecated_findings)
+
+        try:
+            dependencies = fetch_dependencies(repo_url)
+            if dependencies:
+                dependency_release_notes_status = "ok"
+                dependency_release_notes_preview = fetch_dependency_release_notes(dependencies[0].name)
+            else:
+                dependency_release_notes_status = "skipped_no_dependencies"
+        except DependencyParserError as exc:
+            dependency_release_notes_status = "error"
+            dependency_release_notes_error = str(exc)
+        except ReleaseNotesFetcherError as exc:
+            dependency_release_notes_status = "error"
+            dependency_release_notes_error = str(exc)
 
         if notes_file:
             changelog_analysis_status = "ok"
@@ -144,6 +173,9 @@ class AgentOrchestrator:
             "deprecated_risk_summary": deprecated_risk_summary,
             "deprecation_scan_status": deprecation_scan_status,
             "deprecation_scan_error": deprecation_scan_error,
+            "dependency_release_notes_status": dependency_release_notes_status,
+            "dependency_release_notes_error": dependency_release_notes_error,
+            "dependency_release_notes_preview": dependency_release_notes_preview,
             "breaking_change_analysis": breaking_change_analysis,
             "changelog_analysis_status": changelog_analysis_status,
             "changelog_analysis_error": changelog_analysis_error,

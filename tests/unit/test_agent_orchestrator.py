@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.agent_orchestrator import AgentOrchestrator
+from app.models import DependencySpec
 
 
 class TestAgentOrchestrator(unittest.TestCase):
@@ -64,6 +65,29 @@ class TestAgentOrchestrator(unittest.TestCase):
         self.assertEqual(result["changelog_source"], "github_latest_release")
         analysis = result["breaking_change_analysis"]
         self.assertEqual(analysis["finding_count"], 2)
+
+    @patch("app.agent_orchestrator.fetch_dependency_release_notes")
+    @patch("app.agent_orchestrator.fetch_dependencies")
+    def test_agent_mode_includes_dependency_release_notes_preview(self, mock_fetch_deps, mock_fetch_notes) -> None:
+        mock_fetch_deps.return_value = [DependencySpec(name="requests", version="2.31.0")]
+        mock_fetch_notes.return_value = {
+            "package": "requests",
+            "status": "ok",
+            "source": "pypi_summary",
+            "latest_version": "2.32.0",
+            "notes_text": "Release summary",
+        }
+
+        orchestrator = AgentOrchestrator()
+        result = orchestrator.analyze_repository(
+            repo_url="https://github.com/org/repo",
+            notes_file=None,
+        )
+
+        self.assertEqual(result["dependency_release_notes_status"], "ok")
+        preview = result["dependency_release_notes_preview"]
+        self.assertEqual(preview["package"], "requests")
+        self.assertEqual(preview["latest_version"], "2.32.0")
 
 
 if __name__ == "__main__":
