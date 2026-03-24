@@ -29,6 +29,11 @@ def parse_args() -> argparse.Namespace:
         help="Local repository path for code-level scans in agent mode",
     )
     parser.add_argument(
+        "--notes-file",
+        default="",
+        help="Local changelog/release-notes text file for breaking change analysis in agent mode",
+    )
+    parser.add_argument(
         "--output",
         default="",
         help="Output file path. Defaults to artifacts/<run_id>.json",
@@ -80,6 +85,7 @@ def main() -> None:
             repo_url=args.repo_url,
             config_path=args.config,
             repo_path=args.repo_path or None,
+            notes_file=args.notes_file or None,
         )
         report_view = payload.get("report", {})
         health_score = report_view.get("health_score")

@@ -33,6 +33,12 @@ class TestMainOutputPath(unittest.TestCase):
             args = parse_args()
         self.assertEqual(args.repo_path, "/tmp/sample-repo")
 
+    def test_parse_args_supports_notes_file(self) -> None:
+        argv = ["prog", "https://github.com/org/repo", "--notes-file", "/tmp/release_notes.txt"]
+        with patch.object(sys, "argv", argv):
+            args = parse_args()
+        self.assertEqual(args.notes_file, "/tmp/release_notes.txt")
+
 
 if __name__ == "__main__":
     unittest.main()

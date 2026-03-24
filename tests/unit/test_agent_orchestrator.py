@@ -29,6 +29,26 @@ class TestAgentOrchestrator(unittest.TestCase):
             self.assertGreaterEqual(len(summary["top_symbols"]), 1)
             self.assertIn("report", result)
 
+    def test_agent_mode_includes_breaking_change_analysis_when_notes_file_provided(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            notes_path = Path(tmpdir) / "notes.txt"
+            notes_path.write_text(
+                "- BREAKING: Removed old auth hook\n- Deprecated client initialization\n",
+                encoding="utf-8",
+            )
+
+            orchestrator = AgentOrchestrator()
+            result = orchestrator.analyze_repository(
+                repo_url="https://github.com/org/repo",
+                notes_file=str(notes_path),
+            )
+
+            self.assertEqual(result["changelog_analysis_status"], "ok")
+            analysis = result["breaking_change_analysis"]
+            self.assertEqual(analysis["finding_count"], 2)
+            self.assertEqual(analysis["severity_counts"]["high"], 1)
+            self.assertEqual(analysis["severity_counts"]["medium"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
