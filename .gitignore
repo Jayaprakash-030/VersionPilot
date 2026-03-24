@@ -6,3 +6,4 @@ artifacts/
 config/
 data/
 eval/*.json
+.DS_Store

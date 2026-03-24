@@ -24,6 +24,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to scoring config file",
     )
     parser.add_argument(
+        "--repo-path",
+        default="",
+        help="Local repository path for code-level scans in agent mode",
+    )
+    parser.add_argument(
         "--output",
         default="",
         help="Output file path. Defaults to artifacts/<run_id>.json",
@@ -71,7 +76,11 @@ def main() -> None:
 
     if args.mode == "agent":
         orchestrator = AgentOrchestrator()
-        payload = orchestrator.analyze_repository(repo_url=args.repo_url, config_path=args.config)
+        payload = orchestrator.analyze_repository(
+            repo_url=args.repo_url,
+            config_path=args.config,
+            repo_path=args.repo_path or None,
+        )
         report_view = payload.get("report", {})
         health_score = report_view.get("health_score")
         risk_level = report_view.get("risk_level")

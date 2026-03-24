@@ -27,6 +27,12 @@ class TestMainOutputPath(unittest.TestCase):
             args = parse_args()
         self.assertEqual(args.mode, "agent")
 
+    def test_parse_args_supports_repo_path(self) -> None:
+        argv = ["prog", "https://github.com/org/repo", "--repo-path", "/tmp/sample-repo"]
+        with patch.object(sys, "argv", argv):
+            args = parse_args()
+        self.assertEqual(args.repo_path, "/tmp/sample-repo")
+
 
 if __name__ == "__main__":
     unittest.main()
