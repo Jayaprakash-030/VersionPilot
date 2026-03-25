@@ -1,0 +1,10 @@
+# Core
+packaging>=23.0
+
+# Phase 3 — LangGraph multi-agent system
+langgraph>=0.1.0
+langchain-core>=0.1.0
+anthropic[vertex]>=0.18.0
+
+# Dev / testing
+pytest>=8.0.0
