@@ -26,9 +26,16 @@ class DeprecatedAPIScannerError(Exception):
 
 
 class DeprecatedAPIScanner:
-    def __init__(self, rules_path: str = "data/deprecation_rules.json") -> None:
-        self.rules_path = Path(rules_path)
-        self.rules = self._load_rules()
+    def __init__(
+        self,
+        rules_path: str = "data/deprecation_rules.json",
+        rules: Dict[str, Any] | None = None,
+    ) -> None:
+        if rules is not None:
+            self.rules = rules
+        else:
+            self.rules_path = Path(rules_path)
+            self.rules = self._load_rules()
 
     def _load_rules(self) -> Dict[str, Any]:
         if not self.rules_path.exists():
