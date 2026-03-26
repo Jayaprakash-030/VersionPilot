@@ -79,10 +79,14 @@ class ToolRegistry:
         self,
         repo_path: str,
         rules_path: str = "data/deprecation_rules.json",
+        rules: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Scan for deprecated API usage in a local repo clone."""
+        """Scan for deprecated API usage in a local repo clone.
+
+        If ``rules`` is provided it takes precedence over ``rules_path``.
+        """
         try:
-            scanner = DeprecatedAPIScanner(rules_path=rules_path)
+            scanner = DeprecatedAPIScanner(rules_path=rules_path, rules=rules)
             findings = scanner.scan_repository_path(repo_path)
             return {
                 "status": "ok",
