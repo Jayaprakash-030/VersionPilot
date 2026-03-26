@@ -4,6 +4,9 @@ import argparse
 import json
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from .agent_orchestrator import AgentOrchestrator
 from .pipeline import build_run_id, run_pipeline
 from .risk_scoring import load_scoring_config
