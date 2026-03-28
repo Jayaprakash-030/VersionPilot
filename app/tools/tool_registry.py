@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.changelog_analyzer import ChangelogAnalyzer
+from app.dependency_parser import fetch_dependencies
 from app.deprecated_api_scanner import DeprecatedAPIScanner
 from app.migration_planner import MigrationPlanner
 from app.pipeline import run_pipeline
 from app.release_notes_fetcher import fetch_release_notes as _fetch_release_notes
+from app.release_notes_fetcher import fetch_dependency_release_notes as _fetch_dep_release_notes
 
 
 def _now_iso() -> str:
@@ -97,6 +99,18 @@ class ToolRegistry:
             return {"status": "error", "error": str(exc)}
 
     # ------------------------------------------------------------------
+    # Dependency name list (needed for per-dependency release notes)
+    # ------------------------------------------------------------------
+
+    def fetch_dependency_names(self, repo_url: str) -> dict[str, Any]:
+        """Return the list of dependency package names parsed from the repo."""
+        try:
+            specs = fetch_dependencies(repo_url)
+            return {"status": "ok", "names": [s.name for s in specs]}
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
+
+    # ------------------------------------------------------------------
     # Release notes fetcher
     # ------------------------------------------------------------------
 
@@ -109,6 +123,14 @@ class ToolRegistry:
                 "notes_text": notes_text or "",
                 "has_notes": notes_text is not None,
             }
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
+
+    def fetch_dependency_release_notes(self, package_name: str) -> dict[str, Any]:
+        """Fetch release notes for a PyPI package by name."""
+        try:
+            result = _fetch_dep_release_notes(package_name)
+            return {"status": result.get("status", "ok"), **result}
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
