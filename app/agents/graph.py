@@ -1,6 +1,7 @@
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.evidence_node import evidence_node
+from app.agents.planner_node import planner_node
 from app.agents.scoring_node import scoring_node
 from app.agents.state import VersionPilotState, create_initial_state
 
@@ -8,11 +9,6 @@ from app.agents.state import VersionPilotState, create_initial_state
 # ---------------------------------------------------------------------------
 # Skeleton nodes (1.3) — each just logs itself and passes through
 # ---------------------------------------------------------------------------
-
-def planner_node(state: VersionPilotState) -> dict:
-    trace = list(state.get("agent_trace", []))
-    trace.append({"node": "planner", "status": "pass-through"})
-    return {"agent_trace": trace, "agent_plan": {"strategy": "full", "skip_steps": []}}
 
 
 
