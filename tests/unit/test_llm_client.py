@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock, patch
 
+import anthropic
 import pytest
 
 from app.llm_client import LLMClient
@@ -49,6 +50,7 @@ def test_call_returns_text():
     mock_vertex.messages.create.return_value = _mock_response("hello")
     result = client.call("sys", "user")
     assert result == "hello"
+    assert client.last_model_used == LLMClient.DEFAULT_MODEL
 
 
 def test_call_accumulates_tokens_across_calls():
@@ -94,12 +96,41 @@ def test_call_retries_on_transient_error_then_succeeds():
     assert mock_vertex.messages.create.call_count == 2
 
 
-def test_call_raises_after_max_retries():
+def test_call_falls_back_to_gemini_on_quota_error():
+    client, mock_vertex = _make_client()
+    mock_vertex.messages.create.side_effect = anthropic.RateLimitError(
+        message="quota exceeded", response=MagicMock(status_code=429), body={}
+    )
+
+    with patch.object(client, "_call_gemini", return_value="gemini response") as mock_gemini:
+        result = client.call("sys", "user")
+
+    assert result == "gemini response"
+    assert client.last_model_used == LLMClient.GEMINI_MODEL
+    mock_gemini.assert_called_once_with("sys", "user", 1024)
+    # Claude should only be called once — no retries on quota errors
+    assert mock_vertex.messages.create.call_count == 1
+
+
+def test_call_falls_back_to_gemini_after_max_retries():
     client, mock_vertex = _make_client()
     mock_vertex.messages.create.side_effect = RuntimeError("always fails")
 
     with patch("app.llm_client.time.sleep"):
-        with pytest.raises(RuntimeError, match="failed after"):
-            client.call("sys", "user")
+        with patch.object(client, "_call_gemini", return_value="gemini response") as mock_gemini:
+            result = client.call("sys", "user")
 
+    assert result == "gemini response"
     assert mock_vertex.messages.create.call_count == LLMClient.MAX_RETRIES
+    mock_gemini.assert_called_once()
+
+
+def test_call_raises_when_both_claude_and_gemini_fail():
+    client, mock_vertex = _make_client()
+    mock_vertex.messages.create.side_effect = anthropic.RateLimitError(
+        message="quota exceeded", response=MagicMock(status_code=429), body={}
+    )
+
+    with patch.object(client, "_call_gemini", side_effect=RuntimeError("gemini also down")):
+        with pytest.raises(RuntimeError, match="Both Claude and Gemini failed"):
+            client.call("sys", "user")

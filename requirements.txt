@@ -6,6 +6,9 @@ langgraph>=0.1.0
 langchain-core>=0.1.0
 anthropic[vertex]>=0.18.0
 
+# Gemini fallback via Google AI
+langchain-google-genai>=2.0.0
+
 # Environment
 python-dotenv>=1.0.0
 

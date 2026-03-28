@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from app.tools.rules_extractor import RulesExtractor
 
@@ -39,7 +39,8 @@ def test_extract_rules_returns_list_from_llm():
 
 
 def test_extract_rules_returns_empty_when_llm_unavailable():
-    extractor = RulesExtractor(llm_client=None)
+    with patch("app.tools.rules_extractor.LLMClient.is_available", return_value=False):
+        extractor = RulesExtractor(llm_client=None)
     result = extractor.extract_rules("flask", "Flask 1.0 removed flask.ext")
     assert result == []
 
