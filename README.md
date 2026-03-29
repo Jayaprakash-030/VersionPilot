@@ -1,149 +1,150 @@
 # VersionPilot
 
-VersionPilot is an AI-driven dependency health and migration assistant project.
+AI-driven dependency health and migration assistant. Goes beyond "you are outdated" to answer:
+**"what will break in your code, where, and here is the exact migration path."**
 
-Current status:
-- **V1 foundation is implemented** (deterministic health analysis pipeline).
-- **V2 agentic mode has started** (orchestrator skeleton wired into CLI).
+Portfolio project demonstrating agentic AI orchestration with real evaluation metrics and MLOps practices.
 
-The goal is to evolve from basic dependency health scoring to a differentiated system that answers:
-- What is risky?
-- What will break if we upgrade?
-- How do we migrate safely?
+---
 
-## Vision
+## What It Does
 
-Most tools say: "you are outdated".
-VersionPilot aims to say: "what will break, where, and how to fix it."
+Most tools tell you *that* you are outdated. VersionPilot tells you:
 
-### Product direction
-1. Analyze dependencies and repository health.
-2. Detect deprecated API usage in real code.
-3. Analyze upgrade breakage risk.
-4. Generate actionable migration roadmaps.
-5. Use agentic orchestration to adapt analysis strategy and produce contextual reports.
+- What is the health score of this repository's dependencies?
+- Which deprecated APIs are you actively calling, and on which line?
+- What breaking changes are in the release notes of your dependencies?
+- What are the exact migration steps to upgrade safely?
+
+---
 
 ## Architecture
 
-## V1 (implemented)
-- CLI entrypoint: `app/main.py` (`--mode basic`)
-- Deterministic pipeline: `app/pipeline.py`
-- Signals:
-  - GitHub activity (`app/github_client.py`)
-  - Dependency parsing (`app/dependency_parser.py`)
-  - Dependency freshness (`app/dependency_freshness.py`)
-  - Security scan via OSV (`app/vulnerability_scanner.py`)
-- Scoring config: `config/scoring_v1.yaml`
-- Reliability:
-  - retries (`app/retry.py`)
-  - `failed_steps` + `failed_reasons`
-  - `data_completeness` + `confidence_score`
-- Evaluation runner: `eval/run_eval.py`
+### Two modes
 
-## V2 (started)
-- Agent orchestrator skeleton: `app/agent_orchestrator.py`
-- CLI support for agent mode: `--mode agent`
-- Agent mode currently wraps existing V1 pipeline and emits:
-  - `agent_plan`
-  - `agent_trace`
-  - nested `report`
+```bash
+# Deterministic V1 pipeline — fast, no LLM
+python -m app.main https://github.com/owner/repo --mode basic --json
 
-## What Is Implemented (Detailed)
+# LangGraph multi-agent system — full analysis with LLM synthesis
+python -m app.main https://github.com/owner/repo --mode agent --json
+```
 
-### CLI capabilities
-- `--mode basic|agent`
-- `--config`
-- `--output`
-- artifact reuse by default
-- `--force` to recompute
-- `--json` for JSON stdout
+### LangGraph graph (agent mode)
 
-### Health report fields
-- `health_score`, `risk_level`, `breakdown`
-- `repo_metrics`, `dependency_metrics`, `security_metrics`
-- `failed_steps`, `failed_reasons`
-- `data_completeness`, `confidence_score`
+```
+START → planner_node → evidence_node → scoring_node → critic_node
+                                            ↑               ↓
+                                       recovery_node   [pass/fail]
+                                                            ↓
+                                                       report_node → END
+```
 
-### Activity scoring inputs
-- commit recency
-- release recency
-- open issue penalty
-- issue resolution bonus
+| Node | Type | Responsibility |
+|------|------|---------------|
+| `planner_node` | LLM | Decides analysis strategy (full vs lightweight) |
+| `evidence_node` | Deterministic | Runs all tools, auto-clones repo, tracks provenance |
+| `scoring_node` | Deterministic | Computes health score from collected signals |
+| `critic_node` | LLM | Validates consistency, flags suspicious results |
+| `recovery_node` | Deterministic | Degrades confidence, increments retry count |
+| `report_node` | LLM | Synthesizes grounded final report (no hallucination) |
 
-### Dependency freshness
-- version-aware comparison using `packaging.version`
-- policy-controlled outdated counting (`major/minor/patch` gap levels)
-
-### Security scanning
-- OSV batch query
-- version-aware dependency query when version is known
-- highest severity per dependency aggregation
-
-## What We Want To Implement Next
-
-### Phase 2: Differentiator features
-1. **Deprecated API Scanner**
-- Scan Python code AST for deprecated symbols usage.
-- Output file/line-level findings with replacement hints.
-
-2. **Breaking Change Analyzer**
-- Analyze changelogs/releases between current and target versions.
-- Identify likely breaking changes and map to code findings.
-
-3. **Migration Planner**
-- Generate ordered upgrade steps.
-- Include impacted files/symbols and effort estimates.
-
-### Phase 3: Full agentic orchestration
-- Orchestrator delegates to specialist agents:
-  - code analysis agent
-  - deprecation detective agent
-  - migration planner agent
-  - risk assessment/critic agent
-- Agentic report synthesis with reasoning + evidence trace.
+---
 
 ## Project Structure
 
-```text
+```
 app/
-  main.py
-  pipeline.py
-  agent_orchestrator.py
-  models.py
-  risk_scoring.py
-  github_client.py
-  dependency_parser.py
-  dependency_freshness.py
-  vulnerability_scanner.py
-  retry.py
+├── core/               V1 pipeline foundations
+│   ├── pipeline.py         orchestrates GitHub → deps → freshness → OSV → score
+│   ├── risk_scoring.py     weighted scoring (activity 30% / deps 40% / security 30%)
+│   ├── models.py           frozen dataclasses (RepoMetrics, DependencyMetrics, etc.)
+│   ├── github_client.py    GitHub API calls
+│   ├── dependency_parser.py  requirements.txt / pyproject.toml parser
+│   ├── dependency_freshness.py  version-aware outdated detection
+│   ├── vulnerability_scanner.py  OSV batch security scan
+│   └── retry.py            exponential backoff with jitter
+├── analysis/           Phase 2 differentiator tools
+│   ├── deprecated_api_scanner.py  AST scanner for deprecated symbols
+│   ├── changelog_analyzer.py      regex parser for breaking changes
+│   ├── release_notes_fetcher.py   fetch GitHub releases or PyPI descriptions
+│   └── migration_planner.py       ordered migration steps from findings
+├── agents/             LangGraph multi-agent system
+│   ├── graph.py             StateGraph + conditional edges + run_graph()
+│   ├── state.py             VersionPilotState TypedDict
+│   ├── planner_node.py
+│   ├── evidence_node.py
+│   ├── scoring_node.py
+│   ├── critic_node.py
+│   ├── recovery_node.py
+│   ├── report_node.py
+│   └── llm_client.py        Claude (Vertex AI) + Gemini fallback
+├── tools/              LangGraph tool wrappers
+│   ├── tool_registry.py     wraps all modules as callable tools + clone_repo
+│   └── rules_extractor.py   LLM extracts deprecation rules from release notes
+└── main.py             CLI entry point
 
 config/
-  scoring_v1.yaml
+  scoring_v1.yaml       scoring weights and thresholds
 
 data/
+  deprecation_rules.json  static fallback deprecation rules
   benchmark_repos.txt
 
 eval/
-  run_eval.py
-  eval_report.json
+  run_eval.py           batch evaluation runner
 
 tests/
-  unit/
+  unit/                 26 test files
   integration/
 ```
 
+---
+
 ## How To Run
 
-### Basic deterministic mode
+### Setup
 
 ```bash
-python -m app.main https://github.com/owner/repo --mode basic --force
+python -m venv vpilot
+source vpilot/bin/activate
+pip install -r requirements.txt
 ```
 
-### Agent mode (current skeleton)
+Copy `.env.example` to `.env` and fill in:
+
+```
+GITHUB_TOKEN=...             # required for all modes
+GOOGLE_CLOUD_PROJECT=...     # required for agent mode (Vertex AI)
+CLOUD_ML_REGION=us-east5
+GOOGLE_API_KEY=...           # Gemini fallback
+```
+
+For Vertex AI auth: `gcloud auth application-default login`
+
+### Basic mode (no LLM required)
 
 ```bash
-python -m app.main https://github.com/owner/repo --mode agent --force --json
+python -m app.main https://github.com/psf/requests --mode basic --json
+```
+
+### Agent mode (LangGraph + LLM)
+
+```bash
+# Auto-clones the repo for deprecated API scanning
+python -m app.main https://github.com/psf/requests --mode agent --json
+
+# Or provide a local path to skip the clone
+python -m app.main https://github.com/psf/requests --mode agent --repo-path /path/to/requests --json
+```
+
+### Other options
+
+```bash
+--config config/scoring_v1.yaml   # scoring config (default)
+--output report.json              # save to file (default: artifacts/<run_id>.json)
+--force                           # recompute even if artifact exists
+--json                            # print JSON to stdout
 ```
 
 ### Batch evaluation
@@ -152,18 +153,55 @@ python -m app.main https://github.com/owner/repo --mode agent --force --json
 python -m eval.run_eval --repos-file data/benchmark_repos.txt --output eval/eval_report.json
 ```
 
+---
+
 ## Testing
 
 ```bash
-python -m unittest discover -s tests/unit -p "test_*.py"
-python -m unittest discover -s tests/integration -p "test_*.py"
+vpilot/bin/python -m pytest tests/ -v        # all 176 tests
+vpilot/bin/python -m pytest tests/unit/ -v   # unit only
 ```
 
-## Current Limitations
+---
 
-- npm ecosystem support not implemented yet.
-- Deprecated API scanner not implemented yet.
-- Breaking-change analyzer not implemented yet.
-- Migration planner not implemented yet.
-- Agent mode is currently a skeleton over V1 signals.
-- External API failures can reduce completeness/confidence (expected fallback behavior).
+## LLM Configuration
+
+Claude is accessed via **Google Cloud Vertex AI**. Gemini is used as a fallback when Claude quota is exceeded.
+
+Call order in `app/agents/llm_client.py`:
+1. Claude Sonnet 4.6 via `anthropic.AnthropicVertex`
+2. Gemini Flash via `langchain-google-genai` (fallback on quota/rate-limit errors)
+
+All LLM nodes have deterministic fallbacks — agent mode degrades gracefully when credentials are unavailable.
+
+---
+
+## Health Report Output
+
+```json
+{
+  "summary": "...",
+  "health_score": 78.4,
+  "risk_level": "medium",
+  "key_findings": [
+    {"finding": "...", "evidence": "...", "severity": "high"}
+  ],
+  "migration_recommendations": [
+    {"action": "...", "priority": "high", "reason": "..."}
+  ],
+  "data_quality": {
+    "completeness": 0.95,
+    "confidence": 0.88,
+    "failed_steps": []
+  }
+}
+```
+
+---
+
+## Known Limitations
+
+- `dependency_parser` only handles `requirements.txt` and `pyproject.toml`. Repos using `setup.py`/`setup.cfg` will have 0 dependencies parsed.
+- Release notes are fetched for the **latest PyPI version**, not the version pinned in requirements. Deprecation findings may include symbols not relevant until the user actually upgrades.
+- Auto-clone uses `--depth=1` (sufficient for AST scanning, no full git history).
+- npm / non-Python ecosystems not yet supported.
