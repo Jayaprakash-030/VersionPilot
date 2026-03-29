@@ -3,6 +3,7 @@ from langgraph.graph import END, START, StateGraph
 from app.agents.critic_node import critic_node
 from app.agents.evidence_node import evidence_node
 from app.agents.planner_node import planner_node
+from app.agents.recovery_node import recovery_node
 from app.agents.scoring_node import scoring_node
 from app.agents.state import VersionPilotState, create_initial_state
 
@@ -10,12 +11,6 @@ from app.agents.state import VersionPilotState, create_initial_state
 # ---------------------------------------------------------------------------
 # Skeleton nodes (1.3) — each just logs itself and passes through
 # ---------------------------------------------------------------------------
-
-
-def recovery_node(state: VersionPilotState) -> dict:
-    trace = list(state.get("agent_trace", []))
-    trace.append({"node": "recovery", "status": "pass-through"})
-    return {"agent_trace": trace, "retry_count": state.get("retry_count", 0) + 1}
 
 
 def report_node(state: VersionPilotState) -> dict:
