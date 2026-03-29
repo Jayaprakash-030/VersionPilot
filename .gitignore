@@ -10,3 +10,4 @@ eval/*.json
 .DS_Store
 vpilot/
 .claude/
+.pytest_cache/
