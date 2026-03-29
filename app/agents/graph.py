@@ -4,19 +4,9 @@ from app.agents.critic_node import critic_node
 from app.agents.evidence_node import evidence_node
 from app.agents.planner_node import planner_node
 from app.agents.recovery_node import recovery_node
+from app.agents.report_node import report_node
 from app.agents.scoring_node import scoring_node
 from app.agents.state import VersionPilotState, create_initial_state
-
-
-# ---------------------------------------------------------------------------
-# Skeleton nodes (1.3) — each just logs itself and passes through
-# ---------------------------------------------------------------------------
-
-
-def report_node(state: VersionPilotState) -> dict:
-    trace = list(state.get("agent_trace", []))
-    trace.append({"node": "report", "status": "pass-through"})
-    return {"agent_trace": trace, "final_report": {}}
 
 
 # ---------------------------------------------------------------------------
