@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.pipeline import run_pipeline
+from app.core.pipeline import run_pipeline
 
 
 def parse_args() -> argparse.Namespace:

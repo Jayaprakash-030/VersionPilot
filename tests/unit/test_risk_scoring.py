@@ -1,6 +1,6 @@
 import unittest
 
-from app.risk_scoring import compute_health_score, load_scoring_config
+from app.core.risk_scoring import compute_health_score, load_scoring_config
 
 
 class TestRiskScoring(unittest.TestCase):

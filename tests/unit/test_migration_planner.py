@@ -1,6 +1,6 @@
 import unittest
 
-from app.migration_planner import MigrationPlanner
+from app.analysis.migration_planner import MigrationPlanner
 
 
 class TestMigrationPlanner(unittest.TestCase):

@@ -11,3 +11,5 @@ eval/*.json
 vpilot/
 .claude/
 .pytest_cache/
+Claude.md
+v3plan.md

@@ -7,8 +7,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-from .pipeline import build_run_id, run_pipeline
-from .risk_scoring import load_scoring_config
+from .core.pipeline import build_run_id, run_pipeline
+from .core.risk_scoring import load_scoring_config
 from .agents.graph import run_graph
 
 

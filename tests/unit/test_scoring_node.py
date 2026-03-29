@@ -83,7 +83,7 @@ def test_scoring_node_breakdown_has_correct_keys():
 
 def test_scoring_node_config_version_is_forwarded():
     with patch("app.agents.scoring_node.load_scoring_config") as mock_load:
-        from app.risk_scoring import ScoringConfig
+        from app.core.risk_scoring import ScoringConfig
         mock_load.return_value = ScoringConfig(
             version="v1",
             weights={"activity": 0.3, "dependency": 0.4, "security": 0.3},

@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from app.dependency_parser import (
+from app.core.dependency_parser import (
     DependencyParserError,
     fetch_dependencies,
     parse_pyproject_specs,
@@ -92,7 +92,7 @@ dependencies = ["fastapi>=0.110", "uvicorn==0.30.0"]
 """
             return ""
 
-        with patch("app.dependency_parser._fetch_file_content", side_effect=fake_fetch):
+        with patch("app.core.dependency_parser._fetch_file_content", side_effect=fake_fetch):
             deps = fetch_dependencies("https://github.com/org/repo")
 
         self.assertEqual([d.name for d in deps], ["fastapi", "uvicorn"])

@@ -5,13 +5,13 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Any
 
-from app.changelog_analyzer import ChangelogAnalyzer
-from app.dependency_parser import fetch_dependencies
-from app.deprecated_api_scanner import DeprecatedAPIScanner
-from app.migration_planner import MigrationPlanner
-from app.pipeline import run_pipeline
-from app.release_notes_fetcher import fetch_release_notes as _fetch_release_notes
-from app.release_notes_fetcher import fetch_dependency_release_notes as _fetch_dep_release_notes
+from app.analysis.changelog_analyzer import ChangelogAnalyzer
+from app.core.dependency_parser import fetch_dependencies
+from app.analysis.deprecated_api_scanner import DeprecatedAPIScanner
+from app.analysis.migration_planner import MigrationPlanner
+from app.core.pipeline import run_pipeline
+from app.analysis.release_notes_fetcher import fetch_release_notes as _fetch_release_notes
+from app.analysis.release_notes_fetcher import fetch_dependency_release_notes as _fetch_dep_release_notes
 
 
 def _now_iso() -> str:

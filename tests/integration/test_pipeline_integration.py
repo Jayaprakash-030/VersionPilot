@@ -1,15 +1,15 @@
 import unittest
 from unittest.mock import patch
 
-from app.models import DependencySpec, RepoMetrics, SecurityMetrics
-from app.pipeline import run_pipeline
+from app.core.models import DependencySpec, RepoMetrics, SecurityMetrics
+from app.core.pipeline import run_pipeline
 
 
 class TestPipelineIntegration(unittest.TestCase):
-    @patch("app.pipeline.count_outdated_dependencies")
-    @patch("app.pipeline.fetch_security_metrics")
-    @patch("app.pipeline.fetch_dependencies")
-    @patch("app.pipeline.fetch_repo_metrics")
+    @patch("app.core.pipeline.count_outdated_dependencies")
+    @patch("app.core.pipeline.fetch_security_metrics")
+    @patch("app.core.pipeline.fetch_dependencies")
+    @patch("app.core.pipeline.fetch_repo_metrics")
     def test_run_pipeline_with_mocked_sources(self, mock_repo, mock_deps, mock_sec, mock_outdated) -> None:
         mock_repo.return_value = RepoMetrics(
             stars=120,

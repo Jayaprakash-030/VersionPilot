@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.agents.state import VersionPilotState
-from app.llm_client import LLMClient
+from app.agents.llm_client import LLMClient
 
 _SYSTEM_PROMPT = """\
 You are a dependency health report critic. Your job is to validate that the analysis

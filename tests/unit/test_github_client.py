@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timezone
 
-from app.github_client import GitHubClientError, _days_since, parse_repo_url
+from app.core.github_client import GitHubClientError, _days_since, parse_repo_url
 
 
 class TestParseRepoUrl(unittest.TestCase):

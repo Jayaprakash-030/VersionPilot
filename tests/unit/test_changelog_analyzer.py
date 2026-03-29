@@ -1,6 +1,6 @@
 import unittest
 
-from app.changelog_analyzer import ChangelogAnalyzer
+from app.analysis.changelog_analyzer import ChangelogAnalyzer
 
 
 class TestChangelogAnalyzer(unittest.TestCase):

@@ -14,7 +14,7 @@ from app.tools.tool_registry import ToolRegistry
 
 def _make_health_report():
     """Return a minimal fake HealthReport-like object."""
-    from app.models import (
+    from app.core.models import (
         DependencyMetrics,
         HealthReport,
         RepoMetrics,
@@ -90,7 +90,7 @@ class TestRunV1Pipeline:
 
 class TestScanDeprecatedApis:
     def _make_finding(self):
-        from app.deprecated_api_scanner import DeprecatedAPIFinding
+        from app.analysis.deprecated_api_scanner import DeprecatedAPIFinding
         return DeprecatedAPIFinding(
             package="requests",
             symbol="requests.get",

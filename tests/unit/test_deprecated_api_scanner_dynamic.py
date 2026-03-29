@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.deprecated_api_scanner import DeprecatedAPIScanner
+from app.analysis.deprecated_api_scanner import DeprecatedAPIScanner
 
 DYNAMIC_RULES = {
     "requests": {

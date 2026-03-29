@@ -1,6 +1,6 @@
 import unittest
 
-from app.deprecated_api_scanner import DeprecatedAPIScanner
+from app.analysis.deprecated_api_scanner import DeprecatedAPIScanner
 
 
 class TestDeprecatedApiScanner(unittest.TestCase):

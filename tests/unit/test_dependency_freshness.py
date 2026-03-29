@@ -1,6 +1,6 @@
 import unittest
 
-from app.dependency_freshness import _is_outdated, _version_gap_level
+from app.core.dependency_freshness import _is_outdated, _version_gap_level
 
 
 class TestDependencyFreshness(unittest.TestCase):

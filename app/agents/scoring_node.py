@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import asdict
 
 from app.agents.state import VersionPilotState
-from app.models import DependencyMetrics, RepoMetrics, SecurityMetrics
-from app.pipeline import (
+from app.core.models import DependencyMetrics, RepoMetrics, SecurityMetrics
+from app.core.pipeline import (
     compute_activity_score,
     compute_data_quality,
     compute_dependency_score,
     compute_health_score,
     compute_security_score,
 )
-from app.risk_scoring import load_scoring_config, risk_level_from_score
+from app.core.risk_scoring import load_scoring_config, risk_level_from_score
 
 _REPO_DEFAULTS = {
     "stars": 0,

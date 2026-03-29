@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from app.llm_client import LLMClient
+from app.agents.llm_client import LLMClient
 
 _SYSTEM_PROMPT = """\
 You are a Python package deprecation analyst. Given release notes or a changelog for a

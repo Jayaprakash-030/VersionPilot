@@ -5,8 +5,8 @@ from urllib.parse import urlparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .github_client import parse_repo_url
-from .retry import RetryError, run_with_retry
+from app.core.github_client import parse_repo_url
+from app.core.retry import RetryError, run_with_retry
 
 
 class ReleaseNotesFetcherError(Exception):

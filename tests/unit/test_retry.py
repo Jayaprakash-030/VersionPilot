@@ -1,6 +1,6 @@
 import unittest
 
-from app.retry import run_with_retry
+from app.core.retry import run_with_retry
 
 
 class TestRetry(unittest.TestCase):

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import anthropic
 import pytest
 
-from app.llm_client import LLMClient
+from app.agents.llm_client import LLMClient
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ def test_is_available_returns_false_when_env_missing():
 
 def _make_client() -> tuple[LLMClient, MagicMock]:
     """Return an LLMClient with the underlying Anthropic client mocked."""
-    with patch("app.llm_client.anthropic.AnthropicVertex") as MockVertex:
+    with patch("app.agents.llm_client.anthropic.AnthropicVertex") as MockVertex:
         client = LLMClient()
     mock_vertex = MockVertex.return_value
     client.client = mock_vertex
@@ -89,7 +89,7 @@ def test_call_retries_on_transient_error_then_succeeds():
         _mock_response("recovered"),
     ]
 
-    with patch("app.llm_client.time.sleep"):
+    with patch("app.agents.llm_client.time.sleep"):
         result = client.call("sys", "user")
 
     assert result == "recovered"
@@ -116,7 +116,7 @@ def test_call_falls_back_to_gemini_after_max_retries():
     client, mock_vertex = _make_client()
     mock_vertex.messages.create.side_effect = RuntimeError("always fails")
 
-    with patch("app.llm_client.time.sleep"):
+    with patch("app.agents.llm_client.time.sleep"):
         with patch.object(client, "_call_gemini", return_value="gemini response") as mock_gemini:
             result = client.call("sys", "user")
 
