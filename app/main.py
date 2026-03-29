@@ -7,9 +7,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-from .agent_orchestrator import AgentOrchestrator
 from .pipeline import build_run_id, run_pipeline
 from .risk_scoring import load_scoring_config
+from .agents.graph import run_graph
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,16 +83,20 @@ def main() -> None:
         return
 
     if args.mode == "agent":
-        orchestrator = AgentOrchestrator()
-        payload = orchestrator.analyze_repository(
-            repo_url=args.repo_url,
-            config_path=args.config,
-            repo_path=args.repo_path or None,
-            notes_file=args.notes_file or None,
-        )
-        report_view = payload.get("report", {})
-        health_score = report_view.get("health_score")
-        risk_level = report_view.get("risk_level")
+        try:
+            final_state = run_graph(
+                repo_url=args.repo_url,
+                repo_path=args.repo_path or "",
+                config_version=args.config,
+            )
+            payload = final_state.get("final_report", {})
+            health_score = payload.get("health_score")
+            risk_level = payload.get("risk_level")
+        except Exception:
+            report = run_pipeline(repo_url=args.repo_url, config_path=args.config)
+            payload = report.to_dict()
+            health_score = report.health_score
+            risk_level = report.risk_level
     else:
         report = run_pipeline(repo_url=args.repo_url, config_path=args.config)
         payload = report.to_dict()
