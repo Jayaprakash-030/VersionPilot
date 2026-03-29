@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from datetime import datetime, timezone
 
 from app.agents.state import VersionPilotState
@@ -85,24 +86,52 @@ def evidence_node(state: VersionPilotState) -> dict:
             breaking_changes_list.append(changelog_result)
 
     # ------------------------------------------------------------------
-    # Step 4: Deprecated API scan (only if local repo path provided)
+    # Step 4: Deprecated API scan (auto-clone if repo_path not provided)
     # ------------------------------------------------------------------
     deprecated_findings: list[dict] = []
-    if state.get("repo_path"):
-        # Use LLM-extracted rules if available, else fall back to static rules file
-        scan_result = registry.scan_deprecated_apis(
-            state["repo_path"],
-            rules=combined_rules if combined_rules else None,
-        )
+    repo_path: str = state.get("repo_path") or ""
+    cloned_tmp: str | None = None
+
+    if not repo_path:
+        clone_result = registry.clone_repo(state["repo_url"])
         provenance.append({
-            "source": "deprecated_api_scan",
+            "source": "clone_repo",
             "timestamp": _now_iso(),
-            "status": scan_result.get("status", "ok"),
+            "status": clone_result.get("status", "ok"),
         })
-        if scan_result.get("status") == "ok":
-            deprecated_findings = scan_result.get("findings", [])
+        if clone_result.get("status") == "ok":
+            repo_path = clone_result["repo_path"]
+            cloned_tmp = repo_path
         else:
+            failed_steps.append("clone_repo")
+
+    if repo_path:
+        try:
+            # Use LLM-extracted rules if available, else fall back to static rules file
+            scan_result = registry.scan_deprecated_apis(
+                repo_path,
+                rules=combined_rules if combined_rules else None,
+            )
+            provenance.append({
+                "source": "deprecated_api_scan",
+                "timestamp": _now_iso(),
+                "status": scan_result.get("status", "ok"),
+            })
+            if scan_result.get("status") == "ok":
+                deprecated_findings = scan_result.get("findings", [])
+            else:
+                failed_steps.append("deprecated_api_scan")
+        except Exception as exc:
             failed_steps.append("deprecated_api_scan")
+            provenance.append({
+                "source": "deprecated_api_scan",
+                "timestamp": _now_iso(),
+                "status": "error",
+                "error": str(exc),
+            })
+        finally:
+            if cloned_tmp:
+                shutil.rmtree(cloned_tmp, ignore_errors=True)
 
     # ------------------------------------------------------------------
     # Step 5: Aggregate breaking change analysis

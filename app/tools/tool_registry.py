@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import tempfile
 from datetime import datetime, timezone
 from typing import Any
 
@@ -29,6 +31,31 @@ class ToolRegistry:
 
     This means callers never crash — they just record failures.
     """
+
+    # ------------------------------------------------------------------
+    # Repo cloning
+    # ------------------------------------------------------------------
+
+    def clone_repo(self, repo_url: str) -> dict[str, Any]:
+        """Shallow-clone a repo to a temp directory.
+
+        Returns ``{"status": "ok", "repo_path": "<tmp_dir>"}`` on success,
+        or ``{"status": "error", "error": "<message>"}`` on failure.
+        The caller is responsible for deleting the temp directory.
+        """
+        try:
+            tmp_dir = tempfile.mkdtemp(prefix="versionpilot-")
+            result = subprocess.run(
+                ["git", "clone", "--depth=1", repo_url, tmp_dir],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode != 0:
+                return {"status": "error", "error": result.stderr.strip()}
+            return {"status": "ok", "repo_path": tmp_dir}
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
 
     # ------------------------------------------------------------------
     # V1 pipeline

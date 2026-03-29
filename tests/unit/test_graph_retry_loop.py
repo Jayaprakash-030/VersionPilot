@@ -29,6 +29,7 @@ def _mock_registry():
     registry.scan_deprecated_apis.return_value = {"status": "ok", "findings": [], "summary": {}}
     registry.analyze_changelog.return_value = {"status": "ok", "breaking_changes": [], "deprecations": []}
     registry.generate_migration_plan.return_value = {"status": "ok", "steps": []}
+    registry.clone_repo.return_value = {"status": "ok", "repo_path": "/tmp/mock-clone"}
     return registry
 
 
