@@ -30,32 +30,30 @@ class TestRetryCount:
 
 
 class TestConfidenceDegradation:
-    def test_confidence_decreases_by_0_2(self):
-        state = _state(confidence_score=1.0)
+    def test_penalty_increases_by_0_2(self):
+        state = _state(confidence_penalty=0.0)
         result = recovery_node(state)
-        assert abs(result["confidence_score"] - 0.8) < 1e-9
+        assert abs(result["confidence_penalty"] - 0.2) < 1e-9
 
-    def test_confidence_clamped_at_zero(self):
-        state = _state(confidence_score=0.1)
+    def test_penalty_accumulates_across_retries(self):
+        state = _state(confidence_penalty=0.2)
         result = recovery_node(state)
-        assert result["confidence_score"] == 0.0
+        assert abs(result["confidence_penalty"] - 0.4) < 1e-9
 
-    def test_confidence_never_negative(self):
-        state = _state(confidence_score=0.0)
+    def test_penalty_starts_from_zero_when_missing(self):
+        state = _state()
+        state.pop("confidence_penalty", None)
         result = recovery_node(state)
-        assert result["confidence_score"] == 0.0
+        assert abs(result["confidence_penalty"] - 0.2) < 1e-9
 
 
 class TestCompletenessDegradation:
-    def test_completeness_decreases_by_0_15(self):
+    def test_completeness_not_modified_by_recovery(self):
+        # Completeness reflects evidence availability only — critic failure must not reduce it
         state = _state(data_completeness=1.0)
         result = recovery_node(state)
-        assert abs(result["data_completeness"] - 0.85) < 1e-9
-
-    def test_completeness_clamped_at_zero(self):
-        state = _state(data_completeness=0.1)
-        result = recovery_node(state)
-        assert result["data_completeness"] == 0.0
+        assert "data_completeness" not in result
+        assert "completeness_penalty" not in result
 
 
 class TestTrace:

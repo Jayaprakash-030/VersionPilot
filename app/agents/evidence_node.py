@@ -92,7 +92,15 @@ def evidence_node(state: VersionPilotState) -> dict:
     repo_path: str = state.get("repo_path") or ""
     cloned_tmp: str | None = None
 
-    if not repo_path:
+    skip_steps: list[str] = (state.get("agent_plan") or {}).get("skip_steps", [])
+
+    if "deprecated_api_scan" in skip_steps:
+        provenance.append({
+            "source": "deprecated_api_scan",
+            "timestamp": _now_iso(),
+            "status": "skipped",
+        })
+    elif not repo_path:
         clone_result = registry.clone_repo(state["repo_url"])
         provenance.append({
             "source": "clone_repo",
@@ -105,7 +113,7 @@ def evidence_node(state: VersionPilotState) -> dict:
         else:
             failed_steps.append("clone_repo")
 
-    if repo_path:
+    if repo_path and "deprecated_api_scan" not in skip_steps:
         try:
             # Use LLM-extracted rules if available, else fall back to static rules file
             scan_result = registry.scan_deprecated_apis(
@@ -138,6 +146,11 @@ def evidence_node(state: VersionPilotState) -> dict:
     # ------------------------------------------------------------------
     breaking_change_analysis = {
         "packages": breaking_changes_list,
+        "findings": [
+            {**finding, "package": pkg_result.get("package", "unknown")}
+            for pkg_result in breaking_changes_list
+            for finding in pkg_result.get("findings", [])
+        ],
         "total_packages_analyzed": len(breaking_changes_list),
     }
 

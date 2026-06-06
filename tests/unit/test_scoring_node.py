@@ -56,9 +56,37 @@ def test_scoring_node_known_inputs_score_and_risk():
 def test_scoring_node_zero_metrics_defaults_gracefully():
     state = _base_state(repo_metrics={}, dependency_metrics={}, security_metrics={})
     result = scoring_node(state)
-    # Zero/default metrics: no penalty → score = 100.0
+    # Zero/default metrics: no penalty → score = 100.0, but no failed steps so Low is valid
     assert result["health_score"] == 100.0
     assert result["risk_level"] == "Low"
+
+
+def test_scoring_node_v1_pipeline_failure_gives_unknown():
+    state = _base_state(failed_steps=["v1_pipeline"])
+    result = scoring_node(state)
+    assert result["risk_level"] == "Unknown"
+
+
+def test_scoring_node_critical_step_failure_gives_unknown():
+    for step in ("github_data_collector", "dependency_parser", "vulnerability_scanner"):
+        state = _base_state(failed_steps=[step])
+        result = scoring_node(state)
+        assert result["risk_level"] == "Unknown", f"Expected Unknown for failed step: {step}"
+
+
+def test_confidence_penalty_applied_after_recovery():
+    # confidence_penalty written by recovery_node must survive rescoring
+    state = _base_state(failed_steps=[], confidence_penalty=0.4)
+    result = scoring_node(state)
+    # Base confidence with no failed steps = 0.9; penalty 0.4 → 0.5
+    assert result["confidence_score"] == pytest.approx(0.5, abs=1e-9)
+
+
+def test_completeness_not_reduced_by_confidence_penalty():
+    # completeness_penalty was removed — data_completeness must not be affected by recovery
+    state = _base_state(failed_steps=[], confidence_penalty=0.4)
+    result = scoring_node(state)
+    assert result["data_completeness"] == 1.0
 
 
 def test_scoring_node_failed_steps_reduce_data_quality():

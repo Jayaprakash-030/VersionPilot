@@ -250,6 +250,28 @@ def test_no_llm_rules_falls_back_to_static_rules():
 # Agent trace
 # ---------------------------------------------------------------------------
 
+def test_lightweight_skip_steps_no_clone_no_scan_no_failure():
+    """Lightweight plan with skip_steps=['deprecated_api_scan'] must not clone, scan,
+    or record a failure — it should record 'skipped' in provenance."""
+    with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
+         patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
+        registry = MockRegistry.return_value
+        registry.run_v1_pipeline.return_value = _PIPELINE_OK
+        registry.fetch_dependency_names.return_value = _DEP_NAMES_OK
+        registry.fetch_dependency_release_notes.return_value = _NOTES_EMPTY
+        registry.generate_migration_plan.return_value = _MIGRATION_OK
+        MockExtractor.return_value.build_rules_dict.return_value = {}
+
+        state = _base_state(agent_plan={"strategy": "lightweight", "skip_steps": ["deprecated_api_scan"]})
+        result = evidence_node(state)
+
+    registry.clone_repo.assert_not_called()
+    registry.scan_deprecated_apis.assert_not_called()
+    assert "deprecated_api_scan" not in result["failed_steps"]
+    skipped_sources = [p["source"] for p in result["provenance"] if p.get("status") == "skipped"]
+    assert "deprecated_api_scan" in skipped_sources
+
+
 def test_agent_trace_updated():
     """Evidence node appends its completion entry to agent_trace."""
     with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \

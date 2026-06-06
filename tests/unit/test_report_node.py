@@ -115,10 +115,27 @@ class TestReportNodeFallback:
 
     @patch("app.agents.report_node.LLMClient.is_available", return_value=False)
     def test_fallback_passes_through_score_and_risk(self, _mock):
-        state = _state(health_score=44.0, risk_level="critical")
+        state = _state(health_score=44.0, risk_level="critical", critic_passed=True)
         result = report_node(state)
         assert result["final_report"]["health_score"] == 44.0
         assert result["final_report"]["risk_level"] == "critical"
+
+    @patch("app.agents.report_node.LLMClient.is_available", return_value=False)
+    def test_unresolved_critic_sets_unverified_risk(self, _mock):
+        state = _state(health_score=94.0, risk_level="Low", critic_passed=False,
+                       critic_feedback="High score with failed steps", retry_count=2)
+        result = report_node(state)
+        assert result["final_report"]["risk_level"] == "Unverified"
+        assert result["final_report"]["critic"]["passed"] is False
+        assert result["final_report"]["critic"]["retry_count"] == 2
+        assert "High score" in result["final_report"]["critic"]["feedback"]
+
+    @patch("app.agents.report_node.LLMClient.is_available", return_value=False)
+    def test_passing_critic_preserves_normal_risk(self, _mock):
+        state = _state(health_score=80.0, risk_level="Low", critic_passed=True, retry_count=0)
+        result = report_node(state)
+        assert result["final_report"]["risk_level"] == "Low"
+        assert result["final_report"]["critic"]["passed"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +178,34 @@ class TestReportNodeLLM:
         result = report_node(state)
         statuses = [e.get("status") for e in result["agent_trace"] if e.get("node") == "report"]
         assert "complete" in statuses
+
+    @patch("app.agents.report_node.LLMClient.is_available", return_value=True)
+    @patch("app.agents.report_node.LLMClient")
+    def test_llm_empty_object_falls_back_to_template(self, MockLLM, _mock_avail):
+        mock_instance = MagicMock()
+        mock_instance.call.return_value = json.dumps({})
+        MockLLM.return_value = mock_instance
+
+        state = _state(health_score=50.0, risk_level="medium")
+        result = report_node(state)
+
+        assert _REQUIRED_KEYS.issubset(result["final_report"].keys())
+        statuses = [e.get("status") for e in result["agent_trace"] if e.get("node") == "report"]
+        assert "fallback" in statuses
+
+    @patch("app.agents.report_node.LLMClient.is_available", return_value=True)
+    @patch("app.agents.report_node.LLMClient")
+    def test_llm_list_response_falls_back_to_template(self, MockLLM, _mock_avail):
+        mock_instance = MagicMock()
+        mock_instance.call.return_value = json.dumps([])
+        MockLLM.return_value = mock_instance
+
+        state = _state(health_score=50.0, risk_level="medium")
+        result = report_node(state)
+
+        assert _REQUIRED_KEYS.issubset(result["final_report"].keys())
+        statuses = [e.get("status") for e in result["agent_trace"] if e.get("node") == "report"]
+        assert "fallback" in statuses
 
     @patch("app.agents.report_node.LLMClient.is_available", return_value=True)
     @patch("app.agents.report_node.LLMClient")

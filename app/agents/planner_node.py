@@ -16,16 +16,16 @@ Output format:
 }
 
 Rules:
-- Use "full" when a local repo path is provided (deprecated API scan is possible).
-- Use "lightweight" when no local path is given (skip deprecated_api_scan).
+- Default to "full" strategy. Auto-clone is supported when no local path is given.
+- Use "lightweight" only when explicitly justified (e.g. repo is very large, rate limits critical).
 - "skip_steps" lists any tool names to skip (e.g. ["deprecated_api_scan"]).
+- For "full" strategy, skip_steps must be [].
 """
 
 
 def _default_plan(repo_path: str) -> dict:
-    if repo_path:
-        return {"strategy": "full", "skip_steps": []}
-    return {"strategy": "lightweight", "skip_steps": ["deprecated_api_scan"]}
+    # Always full — evidence_node auto-clones when repo_path is absent
+    return {"strategy": "full", "skip_steps": []}
 
 
 def planner_node(state: VersionPilotState) -> dict:

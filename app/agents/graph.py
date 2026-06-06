@@ -52,6 +52,11 @@ def build_graph() -> StateGraph:
 compiled_graph = build_graph()
 
 
-def run_graph(repo_url: str, repo_path: str = "", config_version: str = "config/scoring_v1.yaml") -> dict:
-    initial_state = create_initial_state(repo_url, repo_path, config_version)
+def run_graph(
+    repo_url: str,
+    repo_path: str = "",
+    config_version: str = "config/scoring_v1.yaml",
+    run_id: str = "",
+) -> dict:
+    initial_state = create_initial_state(repo_url, repo_path, config_version, run_id=run_id)
     return compiled_graph.invoke(initial_state)

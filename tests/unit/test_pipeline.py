@@ -57,5 +57,63 @@ class TestPipelineDataQuality(unittest.TestCase):
         self.assertEqual(confidence, 0.55)
 
 
+class TestDetermineRiskLevel(unittest.TestCase):
+    def test_normal_score_returns_risk_tier(self):
+        from app.core.pipeline import determine_risk_level
+        self.assertEqual(determine_risk_level(80.0, []), "Low")
+        self.assertEqual(determine_risk_level(60.0, []), "Medium")
+        self.assertEqual(determine_risk_level(40.0, []), "High")
+
+    def test_github_failure_returns_unknown(self):
+        from app.core.pipeline import determine_risk_level
+        self.assertEqual(determine_risk_level(100.0, ["github_data_collector"]), "Unknown")
+
+    def test_dependency_parser_failure_returns_unknown(self):
+        from app.core.pipeline import determine_risk_level
+        self.assertEqual(determine_risk_level(100.0, ["dependency_parser"]), "Unknown")
+
+    def test_vulnerability_scanner_failure_returns_unknown(self):
+        from app.core.pipeline import determine_risk_level
+        self.assertEqual(determine_risk_level(100.0, ["vulnerability_scanner"]), "Unknown")
+
+    def test_v1_pipeline_failure_returns_unknown(self):
+        from app.core.pipeline import determine_risk_level
+        self.assertEqual(determine_risk_level(100.0, ["v1_pipeline"]), "Unknown")
+
+    def test_non_critical_failure_does_not_affect_risk(self):
+        from app.core.pipeline import determine_risk_level
+        self.assertEqual(determine_risk_level(80.0, ["dependency_freshness"]), "Low")
+
+
+class TestRunPipelineUnknownRisk(unittest.TestCase):
+    def test_github_failure_produces_unknown_risk(self):
+        from unittest.mock import patch
+        from app.core.pipeline import run_pipeline
+        from app.core.github_client import GitHubClientError
+
+        with patch("app.core.pipeline.fetch_repo_metrics", side_effect=GitHubClientError("fail")), \
+             patch("app.core.pipeline.fetch_dependencies", return_value=[]), \
+             patch("app.core.pipeline.count_outdated_dependencies", return_value=0), \
+             patch("app.core.pipeline.fetch_security_metrics", return_value=__import__("app.core.models", fromlist=["SecurityMetrics"]).SecurityMetrics(0, 0, 0, 0)):
+            report = run_pipeline("https://github.com/test/repo")
+
+        self.assertEqual(report.risk_level, "Unknown")
+
+    def test_dependency_parser_failure_produces_unknown_risk(self):
+        from unittest.mock import patch
+        from app.core.pipeline import run_pipeline
+        from app.core.dependency_parser import DependencyParserError
+        from app.core.models import RepoMetrics, SecurityMetrics
+
+        mock_repo = RepoMetrics(stars=100, forks=10, last_commit_days=5,
+                                last_release_days=10, open_issues=2, closed_issues=20)
+        with patch("app.core.pipeline.fetch_repo_metrics", return_value=mock_repo), \
+             patch("app.core.pipeline.fetch_dependencies", side_effect=DependencyParserError("fail")), \
+             patch("app.core.pipeline.fetch_security_metrics", return_value=SecurityMetrics(0, 0, 0, 0)):
+            report = run_pipeline("https://github.com/test/repo")
+
+        self.assertEqual(report.risk_level, "Unknown")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -105,7 +105,16 @@ def report_node(state: VersionPilotState) -> dict:
                 f"critic_feedback: {state.get('critic_feedback', '')}"
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
-            final_report = json.loads(raw)
+            parsed = json.loads(raw)
+            if not isinstance(parsed, dict):
+                raise ValueError(f"LLM returned non-object JSON: {type(parsed).__name__}")
+            if not isinstance(parsed.get("summary"), str):
+                raise ValueError("LLM report missing or invalid 'summary'")
+            if not isinstance(parsed.get("key_findings"), list):
+                raise ValueError("LLM report missing or invalid 'key_findings'")
+            if not isinstance(parsed.get("migration_recommendations"), list):
+                raise ValueError("LLM report missing or invalid 'migration_recommendations'")
+            final_report = parsed
             trace.append({"node": "report", "status": "complete"})
         except Exception:
             final_report = None
@@ -113,5 +122,26 @@ def report_node(state: VersionPilotState) -> dict:
     if final_report is None:
         final_report = _template_report(state)
         trace.append({"node": "report", "status": "fallback", "reason": "llm_unavailable_or_error"})
+
+    # Overwrite factual fields from state — LLM must not alter these
+    final_report["run_id"] = state.get("run_id", "")
+    final_report["health_score"] = state.get("health_score", 0.0)
+    final_report["data_quality"] = {
+        "completeness": state.get("data_completeness", 0.0),
+        "confidence": state.get("confidence_score", 0.0),
+        "failed_steps": state.get("failed_steps") or [],
+    }
+
+    # If the critic never passed, mark the result as unverified
+    critic_passed = state.get("critic_passed", True)
+    final_report["critic"] = {
+        "passed": critic_passed,
+        "feedback": state.get("critic_feedback", ""),
+        "retry_count": state.get("retry_count", 0),
+    }
+    if not critic_passed:
+        final_report["risk_level"] = "Unverified"
+    else:
+        final_report["risk_level"] = state.get("risk_level", "unknown")
 
     return {"final_report": final_report, "agent_trace": trace}

@@ -127,6 +127,50 @@ class TestMainAgentModeFallback(unittest.TestCase):
             config_path="config/scoring_v1.yaml",
         )
 
+    def test_run_id_passed_to_run_graph(self):
+        fake_state = {"final_report": {"health_score": 80.0, "risk_level": "low"}}
+        with tempfile.TemporaryDirectory() as tmpdir:
+            argv = ["prog", "https://github.com/org/repo", "--mode", "agent",
+                    "--output", str(Path(tmpdir) / "out.json")]
+            with patch.object(sys, "argv", argv), \
+                 patch("app.main.load_scoring_config", return_value=_mock_config()), \
+                 patch("app.main.build_run_id", return_value="det123"), \
+                 patch("app.main.run_graph", return_value=fake_state) as mock_rg:
+                from app.main import main
+                main()
+        call_kwargs = mock_rg.call_args[1]
+        self.assertEqual(call_kwargs.get("run_id"), "det123")
+
+    def test_debug_flag_prints_traceback(self):
+        mock_report = _mock_pipeline_report()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            argv = ["prog", "https://github.com/org/repo", "--mode", "agent",
+                    "--debug", "--output", str(Path(tmpdir) / "out.json")]
+            with patch.object(sys, "argv", argv), \
+                 patch("app.main.load_scoring_config", return_value=_mock_config()), \
+                 patch("app.main.build_run_id", return_value="run123"), \
+                 patch("app.main.run_graph", side_effect=RuntimeError("fail")), \
+                 patch("app.main.run_pipeline", return_value=mock_report), \
+                 patch("app.main.traceback.print_exc") as mock_tb:
+                from app.main import main
+                main()
+        mock_tb.assert_called_once()
+
+    def test_no_debug_flag_suppresses_traceback(self):
+        mock_report = _mock_pipeline_report()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            argv = ["prog", "https://github.com/org/repo", "--mode", "agent",
+                    "--output", str(Path(tmpdir) / "out.json")]
+            with patch.object(sys, "argv", argv), \
+                 patch("app.main.load_scoring_config", return_value=_mock_config()), \
+                 patch("app.main.build_run_id", return_value="run123"), \
+                 patch("app.main.run_graph", side_effect=RuntimeError("fail")), \
+                 patch("app.main.run_pipeline", return_value=mock_report), \
+                 patch("app.main.traceback.print_exc") as mock_tb:
+                from app.main import main
+                main()
+        mock_tb.assert_not_called()
+
     def test_fallback_output_contains_pipeline_data(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out = Path(tmpdir) / "out.json"

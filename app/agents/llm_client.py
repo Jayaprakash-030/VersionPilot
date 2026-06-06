@@ -79,11 +79,13 @@ class LLMClient:
 
     def _call_gemini(self, system_prompt: str, user_prompt: str, max_tokens: int) -> str:
         """Call Gemini via Google AI API (langchain-google-genai)."""
-        
+        google_api_key = os.environ.get("GOOGLE_API_KEY", "")
+        if not google_api_key:
+            raise RuntimeError("GOOGLE_API_KEY is not set — Gemini fallback unavailable")
 
         model = ChatGoogleGenerativeAI(
             model=self.GEMINI_MODEL,
-            api_key=os.environ.get("GOOGLE_API_KEY", ""),
+            api_key=google_api_key,
             max_tokens=max_tokens,
         )
         messages = [

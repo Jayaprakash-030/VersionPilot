@@ -125,6 +125,14 @@ def test_call_falls_back_to_gemini_after_max_retries():
     mock_gemini.assert_called_once()
 
 
+def test_call_gemini_raises_when_api_key_missing():
+    client, _ = _make_client()
+    env = {k: v for k, v in __import__("os").environ.items() if k != "GOOGLE_API_KEY"}
+    with __import__("unittest.mock", fromlist=["patch"]).patch.dict(__import__("os").environ, env, clear=True):
+        with pytest.raises(RuntimeError, match="GOOGLE_API_KEY"):
+            client._call_gemini("sys", "user", 256)
+
+
 def test_call_raises_when_both_claude_and_gemini_fail():
     client, mock_vertex = _make_client()
     mock_vertex.messages.create.side_effect = anthropic.RateLimitError(

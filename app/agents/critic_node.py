@@ -44,7 +44,7 @@ def _deterministic_check(state: VersionPilotState) -> tuple[bool, str]:
 
     critical_vulns = security_metrics.get("critical", 0)
     high_vulns = security_metrics.get("high", 0)
-    risk_level = state.get("risk_level", "")
+    risk_level = str(state.get("risk_level", "")).lower()
     if (critical_vulns > 0 or high_vulns > 0) and risk_level in ("low", "healthy"):
         return False, f"Low risk level '{risk_level}' despite {critical_vulns} critical and {high_vulns} high vulnerabilities"
 
@@ -55,7 +55,7 @@ def critic_node(state: VersionPilotState) -> dict:
     """LLM node: validates analysis consistency. Falls back to deterministic checks."""
     trace = list(state.get("agent_trace", []))
 
-    passed = True
+    passed = False
     feedback = ""
 
     if LLMClient.is_available():
@@ -73,19 +73,15 @@ def critic_node(state: VersionPilotState) -> dict:
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=256)
             result = json.loads(raw)
-            passed = bool(result.get("passed", True))
+            passed = bool(result.get("passed", False))
             feedback = result.get("feedback", "")
+            trace.append({"node": "critic", "status": "complete", "passed": passed})
         except Exception:
             passed, feedback = _deterministic_check(state)
             trace.append({"node": "critic", "status": "fallback", "reason": "llm_error"})
     else:
         passed, feedback = _deterministic_check(state)
         trace.append({"node": "critic", "status": "fallback", "reason": "llm_unavailable"})
-
-    if LLMClient.is_available() and not any(
-        e.get("node") == "critic" and e.get("status") == "fallback" for e in trace
-    ):
-        trace.append({"node": "critic", "status": "complete", "passed": passed})
 
     return {
         "critic_passed": passed,

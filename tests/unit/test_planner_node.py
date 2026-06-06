@@ -20,11 +20,12 @@ def _base_state(**overrides) -> dict:
 # Fallback (LLM unavailable)
 # ---------------------------------------------------------------------------
 
-def test_fallback_no_repo_path_gives_lightweight():
+def test_fallback_no_repo_path_gives_full():
+    # Default is always full — evidence_node auto-clones when repo_path is absent
     with patch("app.agents.planner_node.LLMClient.is_available", return_value=False):
         result = planner_node(_base_state(repo_path=""))
-    assert result["agent_plan"]["strategy"] == "lightweight"
-    assert "deprecated_api_scan" in result["agent_plan"]["skip_steps"]
+    assert result["agent_plan"]["strategy"] == "full"
+    assert result["agent_plan"]["skip_steps"] == []
 
 
 def test_fallback_with_repo_path_gives_full():
@@ -77,7 +78,8 @@ def test_llm_failure_falls_back_to_default():
          patch("app.agents.planner_node.LLMClient", return_value=mock_llm):
         result = planner_node(_base_state(repo_path=""))
 
-    assert result["agent_plan"]["strategy"] == "lightweight"
+    assert result["agent_plan"]["strategy"] == "full"
+    assert result["agent_plan"]["skip_steps"] == []
     assert result["agent_trace"][-1]["status"] == "fallback"
 
 

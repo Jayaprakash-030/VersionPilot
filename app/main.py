@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+import traceback
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -51,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print report JSON to stdout",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print full tracebacks to stderr on agent mode failure",
+    )
     return parser.parse_args()
 
 
@@ -88,11 +95,16 @@ def main() -> None:
                 repo_url=args.repo_url,
                 repo_path=args.repo_path or "",
                 config_version=args.config,
+                run_id=run_id,
             )
             payload = final_state.get("final_report", {})
             health_score = payload.get("health_score")
             risk_level = payload.get("risk_level")
-        except Exception:
+        except Exception as exc:
+            print(f"[VersionPilot] agent mode failed: {exc}", file=sys.stderr)
+            if args.debug:
+                traceback.print_exc(file=sys.stderr)
+            print("[VersionPilot] falling back to basic pipeline", file=sys.stderr)
             report = run_pipeline(repo_url=args.repo_url, config_path=args.config)
             payload = report.to_dict()
             health_score = report.health_score

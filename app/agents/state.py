@@ -35,6 +35,7 @@ class VersionPilotState(TypedDict):
     provenance: list[dict]
     data_completeness: float
     confidence_score: float
+    confidence_penalty: float
     failed_steps: list[str]
 
     # Output
@@ -45,12 +46,13 @@ def create_initial_state(
     repo_url: str,
     repo_path: str = "",
     config_version: str = "config/scoring_v1.yaml",
+    run_id: str = "",
 ) -> VersionPilotState:
     return VersionPilotState(
         repo_url=repo_url,
         repo_path=repo_path,
         config_version=config_version,
-        run_id=str(uuid.uuid4()),
+        run_id=run_id or str(uuid.uuid4()),
         repo_metrics={},
         dependency_metrics={},
         security_metrics={},
@@ -68,6 +70,7 @@ def create_initial_state(
         provenance=[],
         data_completeness=0.0,
         confidence_score=0.0,
+        confidence_penalty=0.0,
         failed_steps=[],
         final_report={},
     )

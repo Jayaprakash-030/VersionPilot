@@ -73,6 +73,35 @@ class TestDeterministicCheck:
         passed, feedback = _deterministic_check(state)
         assert passed is False
 
+    def test_capitalized_low_risk_with_critical_vuln_fails(self):
+        # risk_level_from_score returns "Low" (capitalized) — must still be caught
+        state = _state(
+            security_metrics={"critical": 1, "high": 0, "medium": 0, "low": 0},
+            risk_level="Low",
+            health_score=50.0,
+        )
+        passed, feedback = _deterministic_check(state)
+        assert passed is False
+
+    def test_capitalized_low_risk_with_high_vuln_fails(self):
+        state = _state(
+            security_metrics={"critical": 0, "high": 2, "medium": 0, "low": 0},
+            risk_level="Low",
+            health_score=50.0,
+        )
+        passed, feedback = _deterministic_check(state)
+        assert passed is False
+
+    def test_medium_risk_with_high_vuln_passes(self):
+        # Medium risk with high vulns is not flagged — only low/healthy is
+        state = _state(
+            security_metrics={"critical": 0, "high": 1, "medium": 0, "low": 0},
+            risk_level="Medium",
+            health_score=60.0,
+        )
+        passed, _ = _deterministic_check(state)
+        assert passed is True
+
 
 # ---------------------------------------------------------------------------
 # critic_node — LLM unavailable path

@@ -53,6 +53,21 @@ def compute_security_score(security_metrics: SecurityMetrics) -> float:
     return max(0.0, min(100.0, round(score, 2)))
 
 
+_CRITICAL_STEPS = frozenset({
+    "github_data_collector",
+    "dependency_parser",
+    "vulnerability_scanner",
+    "v1_pipeline",
+})
+
+
+def determine_risk_level(health_score: float, failed_steps: list[str]) -> str:
+    """Return risk level, or 'Unknown' when critical evidence collection failed."""
+    if _CRITICAL_STEPS & set(failed_steps):
+        return "Unknown"
+    return risk_level_from_score(health_score)
+
+
 def compute_data_quality(
     failed_steps: list[str],
     step_weights: dict[str, float] | None = None,
@@ -146,7 +161,7 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         repo_url=repo_url,
         config_version=config.version,
         health_score=health_score,
-        risk_level=risk_level_from_score(health_score),
+        risk_level=determine_risk_level(health_score, failed_steps),
         breakdown=breakdown,
         repo_metrics=repo_metrics,
         dependency_metrics=dependency_metrics,

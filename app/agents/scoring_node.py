@@ -10,8 +10,9 @@ from app.core.pipeline import (
     compute_dependency_score,
     compute_health_score,
     compute_security_score,
+    determine_risk_level,
 )
-from app.core.risk_scoring import load_scoring_config, risk_level_from_score
+from app.core.risk_scoring import load_scoring_config
 
 _REPO_DEFAULTS = {
     "stars": 0,
@@ -43,8 +44,10 @@ def scoring_node(state: VersionPilotState) -> dict:
     security = compute_security_score(sec_metrics)
 
     health_score, breakdown = compute_health_score(activity, dependency, security, config)
-    risk_level = risk_level_from_score(health_score)
-    data_completeness, confidence_score = compute_data_quality(state.get("failed_steps", []))
+    failed_steps = state.get("failed_steps", [])
+    risk_level = determine_risk_level(health_score, failed_steps)
+    data_completeness, confidence_score = compute_data_quality(failed_steps)
+    confidence_score = max(0.0, round(confidence_score - state.get("confidence_penalty", 0.0), 2))
 
     trace = list(state.get("agent_trace", []))
     trace.append({"node": "scoring", "status": "complete", "health_score": health_score, "risk_level": risk_level})
