@@ -1,0 +1,1 @@
+{"flask":{"deprecated_symbols":{"flask.escape":{"replacement":"markupsafe.escape","severity":"high","note":"flask.escape was removed"}}}}

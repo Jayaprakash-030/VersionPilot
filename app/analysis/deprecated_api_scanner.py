@@ -99,7 +99,7 @@ class DeprecatedAPIScanner:
         return findings
 
     def _extract_symbol_uses(self, tree: ast.AST) -> Iterable[tuple[str, int]]:
-        aliases = self._extract_module_aliases(tree)
+        module_bindings = self._extract_module_bindings(tree)
 
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -118,17 +118,22 @@ class DeprecatedAPIScanner:
                 full = self._attribute_to_str(node)
                 if full:
                     root, separator, remainder = full.partition(".")
-                    normalized = aliases.get(root, root)
+                    if root not in module_bindings:
+                        continue
+                    normalized = module_bindings[root]
                     yield f"{normalized}{separator}{remainder}", node.lineno
 
-    def _extract_module_aliases(self, tree: ast.AST) -> Dict[str, str]:
-        aliases: Dict[str, str] = {}
+    def _extract_module_bindings(self, tree: ast.AST) -> Dict[str, str]:
+        bindings: Dict[str, str] = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.asname:
-                        aliases[alias.asname] = alias.name
-        return aliases
+                        bindings[alias.asname] = alias.name
+                    else:
+                        root = alias.name.split(".", maxsplit=1)[0]
+                        bindings[root] = root
+        return bindings
 
     def _attribute_to_str(self, node: ast.Attribute) -> str | None:
         parts: List[str] = []

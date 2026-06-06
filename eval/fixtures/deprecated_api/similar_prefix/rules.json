@@ -1,0 +1,1 @@
+{"numpy":{"deprecated_symbols":{"numpy.float":{"replacement":"float","severity":"high","note":"Use built-in float"}}}}

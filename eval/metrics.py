@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 
 FindingKey = tuple[str, int]
@@ -16,6 +17,12 @@ def calculate_detection_metrics(
     true_positives = len(actual_set & expected_set)
     false_positives = len(actual_set - expected_set)
     false_negatives = len(expected_set - actual_set)
+    actual_symbols = Counter(symbol for symbol, _line in actual_set)
+    expected_symbols = Counter(symbol for symbol, _line in expected_set)
+    symbol_matches = sum(
+        min(count, expected_symbols[symbol])
+        for symbol, count in actual_symbols.items()
+    )
 
     precision = (
         true_positives / (true_positives + false_positives)
@@ -28,6 +35,9 @@ def calculate_detection_metrics(
         else 0.0
     )
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    exact_line_location_accuracy = (
+        true_positives / symbol_matches if symbol_matches else 0.0
+    )
 
     return {
         "true_positives": true_positives,
@@ -36,4 +46,5 @@ def calculate_detection_metrics(
         "precision": precision,
         "recall": recall,
         "f1": f1,
+        "exact_line_location_accuracy": exact_line_location_accuracy,
     }

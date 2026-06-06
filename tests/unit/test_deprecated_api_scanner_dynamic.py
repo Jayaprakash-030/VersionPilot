@@ -99,6 +99,29 @@ def test_repeated_usage_on_different_lines_remains_separate():
     ]
 
 
+def test_local_object_named_like_package_does_not_produce_finding():
+    rules = {
+        "flask": {
+            "deprecated_symbols": {
+                "flask.escape": {
+                    "replacement": "markupsafe.escape",
+                }
+            }
+        }
+    }
+    scanner = DeprecatedAPIScanner(rules=rules)
+
+    findings = scanner.scan_python_source(
+        "class LocalObject:\n"
+        "    escape = staticmethod(str)\n"
+        "\n"
+        "flask = LocalObject()\n"
+        "escaped = flask.escape('<p>')\n"
+    )
+
+    assert findings == []
+
+
 # ---------------------------------------------------------------------------
 # Backward compatibility — file-based rules still work
 # ---------------------------------------------------------------------------

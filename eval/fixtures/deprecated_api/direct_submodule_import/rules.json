@@ -1,0 +1,1 @@
+{"flask":{"deprecated_symbols":{"flask.ext":{"replacement":"flask_sqlalchemy","severity":"high","note":"Use extension packages directly"}}}}

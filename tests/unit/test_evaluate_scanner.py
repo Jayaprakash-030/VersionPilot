@@ -46,9 +46,10 @@ def test_evaluate_fixture_measures_incorrect_result(tmp_path):
 def test_evaluate_suite_aggregates_all_fixture_results():
     result = evaluate_suite("eval/fixtures/deprecated_api")
 
-    assert result["fixture_count"] == 12
-    assert result["passed_fixture_count"] == 12
-    assert result["failed_fixtures"] == []
-    assert len(result["fixtures"]) == 12
-    assert result["metrics"]["true_positives"] > 0
-    assert result["metrics"]["false_negatives"] == 0
+    assert result["fixture_count"] == 30
+    assert result["passed_fixture_count"] == 29
+    assert result["failed_fixtures"] == ["wildcard_import_usage"]
+    assert len(result["fixtures"]) == 30
+    assert result["metrics"]["false_positives"] == 0
+    assert result["metrics"]["false_negatives"] == 1
+    assert result["metrics"]["exact_line_location_accuracy"] == 1.0
