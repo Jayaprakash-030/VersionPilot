@@ -112,9 +112,28 @@ class TestScanDeprecatedApis:
             result = registry.scan_deprecated_apis("/fake/repo")
 
         assert result["status"] == "ok"
+        assert result["rules_source"] == "static_fallback"
         assert result["finding_count"] == 1
         assert result["findings"][0]["package"] == "requests"
         assert result["findings"][0]["severity"] == "medium"
+
+    def test_dynamic_rules_source(self):
+        registry = ToolRegistry()
+        dynamic_rules = {"requests": {"deprecated_symbols": {}}}
+        mock_scanner = MagicMock()
+        mock_scanner.scan_repository_path.return_value = []
+
+        with patch(
+            "app.tools.tool_registry.DeprecatedAPIScanner",
+            return_value=mock_scanner,
+        ) as scanner_class:
+            result = registry.scan_deprecated_apis("/fake/repo", rules=dynamic_rules)
+
+        assert result["rules_source"] == "dynamic"
+        scanner_class.assert_called_once_with(
+            rules_path="data/deprecation_rules.json",
+            rules=dynamic_rules,
+        )
 
     def test_no_findings(self):
         registry = ToolRegistry()
@@ -138,6 +157,7 @@ class TestScanDeprecatedApis:
             result = registry.scan_deprecated_apis("/fake/repo")
 
         assert result["status"] == "error"
+        assert result["rules_source"] == "static_fallback"
         assert "rules file not found" in result["error"]
 
 

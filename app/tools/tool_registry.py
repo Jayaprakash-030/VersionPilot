@@ -114,16 +114,22 @@ class ToolRegistry:
 
         If ``rules`` is provided it takes precedence over ``rules_path``.
         """
+        rules_source = "dynamic" if rules is not None else "static_fallback"
         try:
             scanner = DeprecatedAPIScanner(rules_path=rules_path, rules=rules)
             findings = scanner.scan_repository_path(repo_path)
             return {
                 "status": "ok",
+                "rules_source": rules_source,
                 "finding_count": len(findings),
                 "findings": [f.to_dict() for f in findings],
             }
         except Exception as exc:
-            return {"status": "error", "error": str(exc)}
+            return {
+                "status": "error",
+                "rules_source": rules_source,
+                "error": str(exc),
+            }
 
     # ------------------------------------------------------------------
     # Dependency name list (needed for per-dependency release notes)

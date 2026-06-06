@@ -352,6 +352,13 @@ tests/
 Use pytest for pass/fail regression behavior. Use evaluation scripts for metrics
 and report generation.
 
+### Deferred Environment Check
+
+The focused evaluation tests pass under the current system Python. The full unit
+suite must be rerun later from the project virtual environment after installing
+all requirements; collection currently stops because `anthropic` and
+`langgraph` are unavailable in the system Python environment.
+
 ---
 
 ## Build Order
