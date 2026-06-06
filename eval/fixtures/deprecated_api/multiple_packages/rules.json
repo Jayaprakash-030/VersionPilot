@@ -1,0 +1,20 @@
+{
+  "flask": {
+    "deprecated_symbols": {
+      "flask.escape": {
+        "replacement": "markupsafe.escape",
+        "severity": "high",
+        "note": "flask.escape was removed"
+      }
+    }
+  },
+  "numpy": {
+    "deprecated_symbols": {
+      "numpy.float": {
+        "replacement": "float",
+        "severity": "high",
+        "note": "Use the built-in float type"
+      }
+    }
+  }
+}

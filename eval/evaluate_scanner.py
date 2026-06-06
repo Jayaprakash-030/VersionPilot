@@ -26,19 +26,58 @@ def evaluate_fixture(fixture_path: str | Path) -> dict[str, object]:
         "fixture": fixture.name,
         "actual": actual,
         "expected": expected,
+        "passed": set(actual) == set(expected),
         "metrics": calculate_detection_metrics(actual, expected),
     }
 
 
+def evaluate_suite(fixtures_path: str | Path) -> dict[str, object]:
+    """Evaluate every fixture directory and return aggregate metrics."""
+    root = Path(fixtures_path)
+    results = [
+        evaluate_fixture(fixture)
+        for fixture in sorted(root.iterdir())
+        if fixture.is_dir()
+    ]
+
+    actual: list[FindingKey] = []
+    expected: list[FindingKey] = []
+    for result in results:
+        fixture_name = str(result["fixture"])
+        actual.extend(
+            (f"{fixture_name}/{symbol}", line)
+            for symbol, line in result["actual"]
+        )
+        expected.extend(
+            (f"{fixture_name}/{symbol}", line)
+            for symbol, line in result["expected"]
+        )
+
+    return {
+        "fixture_count": len(results),
+        "passed_fixture_count": sum(bool(result["passed"]) for result in results),
+        "failed_fixtures": [
+            result["fixture"] for result in results if not result["passed"]
+        ],
+        "metrics": calculate_detection_metrics(actual, expected),
+        "fixtures": results,
+    }
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate one deprecated API scanner fixture")
-    parser.add_argument("fixture_path", help="Path to a scanner fixture directory")
+    parser = argparse.ArgumentParser(description="Evaluate deprecated API scanner fixtures")
+    parser.add_argument("fixtures_path", help="Path to one fixture or a fixture root")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    result = evaluate_fixture(args.fixture_path)
+    path = Path(args.fixtures_path)
+    result = (
+        evaluate_fixture(path)
+        if (path / "source.py").exists()
+        else evaluate_suite(path)
+    )
     print(json.dumps(result, indent=2))
 
 

@@ -1,0 +1,11 @@
+{
+  "requests": {
+    "deprecated_symbols": {
+      "requests.packages.urllib3": {
+        "replacement": "urllib3",
+        "severity": "high",
+        "note": "Use urllib3 directly"
+      }
+    }
+  }
+}

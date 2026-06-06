@@ -1,0 +1,16 @@
+{
+  "numpy": {
+    "deprecated_symbols": {
+      "numpy.float": {
+        "replacement": "float",
+        "severity": "high",
+        "note": "Use the built-in float type"
+      },
+      "numpy.int": {
+        "replacement": "int",
+        "severity": "high",
+        "note": "Use the built-in int type"
+      }
+    }
+  }
+}

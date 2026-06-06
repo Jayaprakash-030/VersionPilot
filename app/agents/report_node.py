@@ -41,6 +41,21 @@ Rules:
 """
 
 
+def _deprecated_api_rules_source(state: VersionPilotState) -> str:
+    for entry in reversed(state.get("provenance") or []):
+        if entry.get("source") == "deprecated_api_scan":
+            return entry.get("rules_source", "unknown")
+    return "unknown"
+
+
+def _static_fallback_notice(state: VersionPilotState) -> str:
+    if _deprecated_api_rules_source(state) != "static_fallback":
+        return ""
+    if state.get("deprecated_findings"):
+        return ""
+    return " No deprecated APIs were found using the limited static fallback rules."
+
+
 def _template_report(state: VersionPilotState, effective_risk: str | None = None) -> dict:
     """Template-based fallback when LLM is unavailable."""
     published_risk = effective_risk or state.get("risk_level", "unknown")
@@ -71,6 +86,7 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
             f"{len(deprecated_findings)} deprecated API finding(s), "
             f"{len(steps)} migration step(s). "
             f"Data completeness: {state.get('data_completeness', 0.0):.0%}."
+            f"{_static_fallback_notice(state)}"
         ),
         "health_score": state.get("health_score", 0.0),
         "risk_level": published_risk,
@@ -82,6 +98,7 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
             "failed_steps": failed_steps,
             "migration_analysis_completeness": state.get("migration_analysis_completeness", 0.0),
             "migration_analysis_failed_steps": state.get("migration_analysis_failed_steps") or [],
+            "deprecated_api_rules_source": _deprecated_api_rules_source(state),
         },
     }
 
@@ -111,6 +128,7 @@ def report_node(state: VersionPilotState) -> dict:
                 f"confidence_score: {state.get('confidence_score', 0.0)}\n"
                 f"migration_analysis_completeness: {state.get('migration_analysis_completeness', 0.0)}\n"
                 f"migration_analysis_failed_steps: {json.dumps(state.get('migration_analysis_failed_steps', []))}\n"
+                f"deprecated_api_rules_source: {_deprecated_api_rules_source(state)}\n"
                 f"critic_feedback: {state.get('critic_feedback', '')}"
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
@@ -141,6 +159,7 @@ def report_node(state: VersionPilotState) -> dict:
         "failed_steps": state.get("failed_steps") or [],
         "migration_analysis_completeness": state.get("migration_analysis_completeness", 0.0),
         "migration_analysis_failed_steps": state.get("migration_analysis_failed_steps") or [],
+        "deprecated_api_rules_source": _deprecated_api_rules_source(state),
     }
 
     # If the critic never passed, mark the result as unverified
@@ -152,5 +171,8 @@ def report_node(state: VersionPilotState) -> dict:
     final_report["risk_level"] = effective_risk
     if not critic_passed:
         final_report["summary"] = _template_report(state, effective_risk)["summary"]
+    elif notice := _static_fallback_notice(state):
+        if notice.strip() not in final_report["summary"]:
+            final_report["summary"] += notice
 
     return {"final_report": final_report, "agent_trace": trace}

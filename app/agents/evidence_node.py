@@ -151,6 +151,7 @@ def evidence_node(state: VersionPilotState) -> dict:
                 "source": "deprecated_api_scan",
                 "timestamp": _now_iso(),
                 "status": scan_result.get("status", "ok"),
+                "rules_source": scan_result.get("rules_source", "unknown"),
             })
             if scan_result.get("status") == "ok":
                 deprecated_findings = scan_result.get("findings", [])

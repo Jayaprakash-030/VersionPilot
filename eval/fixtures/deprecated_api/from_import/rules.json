@@ -1,0 +1,11 @@
+{
+  "flask": {
+    "deprecated_symbols": {
+      "flask.ext": {
+        "replacement": "flask_sqlalchemy",
+        "severity": "high",
+        "note": "Flask extension imports should use extension packages directly"
+      }
+    }
+  }
+}

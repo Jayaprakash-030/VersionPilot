@@ -247,6 +247,7 @@ def test_deprecated_scan_failure_recorded():
 def test_llm_rules_passed_to_scan_deprecated_apis():
     """When RulesExtractor returns rules, they are passed to scan_deprecated_apis."""
     extracted_rules = {"requests": {"deprecated_symbols": {"requests.compat": {"replacement": "", "severity": "high", "note": "removed"}}}}
+    dynamic_scan_result = {**_SCAN_OK, "rules_source": "dynamic"}
 
     with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
          patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
@@ -255,35 +256,47 @@ def test_llm_rules_passed_to_scan_deprecated_apis():
         registry.fetch_dependency_names.return_value = {"status": "ok", "names": ["requests"]}
         registry.fetch_dependency_release_notes.return_value = _NOTES_OK
         registry.analyze_changelog.return_value = _CHANGELOG_OK
-        registry.scan_deprecated_apis.return_value = _SCAN_OK
+        registry.scan_deprecated_apis.return_value = dynamic_scan_result
         registry.generate_migration_plan.return_value = _MIGRATION_OK
 
         extractor = MockExtractor.return_value
         extractor.build_rules_dict.return_value = extracted_rules
 
-        evidence_node(_base_state(repo_path="/tmp/repo"))
+        result = evidence_node(_base_state(repo_path="/tmp/repo"))
 
     _, kwargs = registry.scan_deprecated_apis.call_args
     assert kwargs.get("rules") == extracted_rules
+    scan_provenance = next(
+        entry for entry in result["provenance"]
+        if entry["source"] == "deprecated_api_scan"
+    )
+    assert scan_provenance["rules_source"] == "dynamic"
 
 
 def test_no_llm_rules_falls_back_to_static_rules():
     """When RulesExtractor returns no rules, scan_deprecated_apis is called with rules=None."""
+    static_scan_result = {**_SCAN_OK, "rules_source": "static_fallback"}
+
     with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
          patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
         registry = MockRegistry.return_value
         registry.run_v1_pipeline.return_value = _PIPELINE_OK
         registry.fetch_dependency_names.return_value = _DEP_NAMES_OK
         registry.fetch_dependency_release_notes.return_value = _NOTES_EMPTY
-        registry.scan_deprecated_apis.return_value = _SCAN_OK
+        registry.scan_deprecated_apis.return_value = static_scan_result
         registry.generate_migration_plan.return_value = _MIGRATION_OK
 
         MockExtractor.return_value.build_rules_dict.return_value = {}
 
-        evidence_node(_base_state(repo_path="/tmp/repo"))
+        result = evidence_node(_base_state(repo_path="/tmp/repo"))
 
     _, kwargs = registry.scan_deprecated_apis.call_args
     assert kwargs.get("rules") is None
+    scan_provenance = next(
+        entry for entry in result["provenance"]
+        if entry["source"] == "deprecated_api_scan"
+    )
+    assert scan_provenance["rules_source"] == "static_fallback"
 
 
 # ---------------------------------------------------------------------------
