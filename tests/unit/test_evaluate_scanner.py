@@ -47,8 +47,8 @@ def test_evaluate_suite_aggregates_all_fixture_results():
     result = evaluate_suite("eval/fixtures/deprecated_api")
 
     assert result["fixture_count"] == 12
-    assert result["passed_fixture_count"] == 11
-    assert result["failed_fixtures"] == ["aliased_import"]
+    assert result["passed_fixture_count"] == 12
+    assert result["failed_fixtures"] == []
     assert len(result["fixtures"]) == 12
     assert result["metrics"]["true_positives"] > 0
-    assert result["metrics"]["false_negatives"] > 0
+    assert result["metrics"]["false_negatives"] == 0

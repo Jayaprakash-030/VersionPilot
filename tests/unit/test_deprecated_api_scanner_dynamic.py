@@ -49,6 +49,56 @@ def test_empty_rules_dict_produces_no_findings():
     assert findings == []
 
 
+def test_module_alias_usage_produces_finding():
+    rules = {
+        "flask": {
+            "deprecated_symbols": {
+                "flask.escape": {
+                    "replacement": "markupsafe.escape",
+                    "severity": "high",
+                    "note": "Removed from Flask",
+                }
+            }
+        }
+    }
+    scanner = DeprecatedAPIScanner(rules=rules)
+
+    findings = scanner.scan_python_source(
+        "import flask as f\n\nescaped = f.escape('<p>')\n"
+    )
+
+    assert [(finding.symbol, finding.line) for finding in findings] == [
+        ("flask.escape", 3)
+    ]
+
+
+def test_nested_attribute_usage_does_not_duplicate_finding():
+    scanner = DeprecatedAPIScanner(rules=DYNAMIC_RULES)
+
+    findings = scanner.scan_python_source(
+        "import requests\n\nrequests.packages.urllib3.disable_warnings()\n"
+    )
+
+    assert [(finding.symbol, finding.line) for finding in findings] == [
+        ("requests.packages.urllib3", 3)
+    ]
+
+
+def test_repeated_usage_on_different_lines_remains_separate():
+    scanner = DeprecatedAPIScanner(rules=DYNAMIC_RULES)
+
+    findings = scanner.scan_python_source(
+        "import requests\n"
+        "first = requests.packages.urllib3\n"
+        "second = requests.packages.urllib3\n"
+    )
+
+    assert [(finding.symbol, finding.line) for finding in findings] == [
+        ("requests.packages.urllib3", 2),
+        ("requests.packages.urllib3", 3),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Backward compatibility — file-based rules still work
 # ---------------------------------------------------------------------------

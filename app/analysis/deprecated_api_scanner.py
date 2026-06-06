@@ -73,12 +73,17 @@ class DeprecatedAPIScanner:
 
         symbol_uses = list(self._extract_symbol_uses(tree))
         findings: List[DeprecatedAPIFinding] = []
+        seen_findings: set[tuple[str, str, int]] = set()
 
         for package, package_rules in self.rules.items():
             deprecated = package_rules.get("deprecated_symbols", {})
             for symbol, metadata in deprecated.items():
                 for used_symbol, line in symbol_uses:
                     if used_symbol == symbol or used_symbol.startswith(symbol + "."):
+                        finding_key = (symbol, file_path, line)
+                        if finding_key in seen_findings:
+                            continue
+                        seen_findings.add(finding_key)
                         findings.append(
                             DeprecatedAPIFinding(
                                 package=package,
@@ -94,6 +99,8 @@ class DeprecatedAPIScanner:
         return findings
 
     def _extract_symbol_uses(self, tree: ast.AST) -> Iterable[tuple[str, int]]:
+        aliases = self._extract_module_aliases(tree)
+
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
@@ -110,7 +117,18 @@ class DeprecatedAPIScanner:
             if isinstance(node, ast.Attribute):
                 full = self._attribute_to_str(node)
                 if full:
-                    yield full, node.lineno
+                    root, separator, remainder = full.partition(".")
+                    normalized = aliases.get(root, root)
+                    yield f"{normalized}{separator}{remainder}", node.lineno
+
+    def _extract_module_aliases(self, tree: ast.AST) -> Dict[str, str]:
+        aliases: Dict[str, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.asname:
+                        aliases[alias.asname] = alias.name
+        return aliases
 
     def _attribute_to_str(self, node: ast.Attribute) -> str | None:
         parts: List[str] = []
