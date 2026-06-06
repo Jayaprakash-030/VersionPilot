@@ -56,6 +56,7 @@ def compute_security_score(security_metrics: SecurityMetrics) -> float:
 _CRITICAL_STEPS = frozenset({
     "github_data_collector",
     "dependency_parser",
+    "dependency_freshness",
     "vulnerability_scanner",
     "v1_pipeline",
 })
@@ -72,6 +73,9 @@ def compute_data_quality(
     failed_steps: list[str],
     step_weights: dict[str, float] | None = None,
 ) -> tuple[float, float]:
+    if "v1_pipeline" in failed_steps:
+        return 0.0, 0.0
+
     weights = step_weights or {
         "github_data_collector": 0.35,
         "dependency_parser": 0.30,

@@ -47,7 +47,7 @@ def summarize(results: list[dict]) -> dict:
             "avg_health_score": 0.0,
             "avg_data_completeness": 0.0,
             "avg_confidence_score": 0.0,
-            "risk_distribution": {"Low": 0, "Medium": 0, "High": 0},
+            "risk_distribution": {"Low": 0, "Medium": 0, "High": 0, "Unknown": 0, "Other": 0},
             "runs_with_failures": 0,
             "failed_step_distribution": {},
         }
@@ -63,14 +63,14 @@ def summarize(results: list[dict]) -> dict:
         2,
     )
 
-    risk_distribution = {"Low": 0, "Medium": 0, "High": 0}
+    risk_distribution = {"Low": 0, "Medium": 0, "High": 0, "Unknown": 0, "Other": 0}
     runs_with_failures = 0
     failed_step_distribution: dict[str, int] = {}
 
     for r in results:
-        risk = r.get("risk_level", "Medium")
+        risk = r.get("risk_level", "Unknown")
         if risk not in risk_distribution:
-            risk = "Medium"
+            risk = "Other"
         risk_distribution[risk] += 1
 
         failed_steps = r.get("failed_steps", [])

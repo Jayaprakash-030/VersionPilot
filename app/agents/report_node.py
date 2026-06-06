@@ -26,7 +26,9 @@ Output format:
   "data_quality": {
     "completeness": <float>,
     "confidence": <float>,
-    "failed_steps": [...]
+    "failed_steps": [...],
+    "migration_analysis_completeness": <float>,
+    "migration_analysis_failed_steps": [...]
   }
 }
 
@@ -39,8 +41,9 @@ Rules:
 """
 
 
-def _template_report(state: VersionPilotState) -> dict:
+def _template_report(state: VersionPilotState, effective_risk: str | None = None) -> dict:
     """Template-based fallback when LLM is unavailable."""
+    published_risk = effective_risk or state.get("risk_level", "unknown")
     migration_plan = state.get("migration_plan") or {}
     steps = migration_plan.get("steps", [])
     deprecated_findings = state.get("deprecated_findings") or []
@@ -64,19 +67,21 @@ def _template_report(state: VersionPilotState) -> dict:
 
     return {
         "summary": (
-            f"Health score: {state.get('health_score', 0.0):.1f} ({state.get('risk_level', 'unknown')} risk). "
+            f"Health score: {state.get('health_score', 0.0):.1f} ({published_risk} risk). "
             f"{len(deprecated_findings)} deprecated API finding(s), "
             f"{len(steps)} migration step(s). "
             f"Data completeness: {state.get('data_completeness', 0.0):.0%}."
         ),
         "health_score": state.get("health_score", 0.0),
-        "risk_level": state.get("risk_level", "unknown"),
+        "risk_level": published_risk,
         "key_findings": key_findings,
         "migration_recommendations": migration_recommendations,
         "data_quality": {
             "completeness": state.get("data_completeness", 0.0),
             "confidence": state.get("confidence_score", 0.0),
             "failed_steps": failed_steps,
+            "migration_analysis_completeness": state.get("migration_analysis_completeness", 0.0),
+            "migration_analysis_failed_steps": state.get("migration_analysis_failed_steps") or [],
         },
     }
 
@@ -85,6 +90,8 @@ def report_node(state: VersionPilotState) -> dict:
     """LLM node: synthesizes grounded final report. Falls back to template when LLM unavailable."""
     trace = list(state.get("agent_trace", []))
     final_report = None
+    critic_passed = state.get("critic_passed", True)
+    effective_risk = state.get("risk_level", "unknown") if critic_passed else "Unverified"
 
     if LLMClient.is_available():
         try:
@@ -93,7 +100,7 @@ def report_node(state: VersionPilotState) -> dict:
             user_prompt = (
                 f"repo_url: {state.get('repo_url', '')}\n"
                 f"health_score: {state.get('health_score', 0.0)}\n"
-                f"risk_level: {state.get('risk_level', '')}\n"
+                f"risk_level: {effective_risk}\n"
                 f"breakdown: {json.dumps(state.get('breakdown', {}))}\n"
                 f"deprecated_findings: {json.dumps(state.get('deprecated_findings', []))}\n"
                 f"breaking_change_analysis: {json.dumps(state.get('breaking_change_analysis', {}))}\n"
@@ -102,6 +109,8 @@ def report_node(state: VersionPilotState) -> dict:
                 f"failed_steps: {json.dumps(state.get('failed_steps', []))}\n"
                 f"data_completeness: {state.get('data_completeness', 0.0)}\n"
                 f"confidence_score: {state.get('confidence_score', 0.0)}\n"
+                f"migration_analysis_completeness: {state.get('migration_analysis_completeness', 0.0)}\n"
+                f"migration_analysis_failed_steps: {json.dumps(state.get('migration_analysis_failed_steps', []))}\n"
                 f"critic_feedback: {state.get('critic_feedback', '')}"
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
@@ -120,7 +129,7 @@ def report_node(state: VersionPilotState) -> dict:
             final_report = None
 
     if final_report is None:
-        final_report = _template_report(state)
+        final_report = _template_report(state, effective_risk)
         trace.append({"node": "report", "status": "fallback", "reason": "llm_unavailable_or_error"})
 
     # Overwrite factual fields from state — LLM must not alter these
@@ -130,18 +139,18 @@ def report_node(state: VersionPilotState) -> dict:
         "completeness": state.get("data_completeness", 0.0),
         "confidence": state.get("confidence_score", 0.0),
         "failed_steps": state.get("failed_steps") or [],
+        "migration_analysis_completeness": state.get("migration_analysis_completeness", 0.0),
+        "migration_analysis_failed_steps": state.get("migration_analysis_failed_steps") or [],
     }
 
     # If the critic never passed, mark the result as unverified
-    critic_passed = state.get("critic_passed", True)
     final_report["critic"] = {
         "passed": critic_passed,
         "feedback": state.get("critic_feedback", ""),
         "retry_count": state.get("retry_count", 0),
     }
+    final_report["risk_level"] = effective_risk
     if not critic_passed:
-        final_report["risk_level"] = "Unverified"
-    else:
-        final_report["risk_level"] = state.get("risk_level", "unknown")
+        final_report["summary"] = _template_report(state, effective_risk)["summary"]
 
     return {"final_report": final_report, "agent_trace": trace}

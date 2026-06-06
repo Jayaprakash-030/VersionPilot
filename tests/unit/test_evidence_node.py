@@ -141,6 +141,46 @@ def test_v1_pipeline_failed_steps_merged():
     assert "github_data_collector" in result["failed_steps"]
 
 
+def test_release_notes_failure_reduces_only_migration_completeness():
+    with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
+         patch("app.agents.evidence_node.RulesExtractor"):
+        registry = MockRegistry.return_value
+        registry.run_v1_pipeline.return_value = _PIPELINE_OK
+        registry.fetch_dependency_names.return_value = {"status": "ok", "names": ["requests"]}
+        registry.fetch_dependency_release_notes.return_value = {
+            "status": "error", "error": "network timeout",
+        }
+        registry.generate_migration_plan.return_value = _MIGRATION_OK
+
+        result = evidence_node(_base_state(
+            agent_plan={"strategy": "lightweight", "skip_steps": ["deprecated_api_scan"]},
+        ))
+
+    assert result["migration_analysis_completeness"] < 1.0
+    assert "release_notes:requests" in result["migration_analysis_failed_steps"]
+    assert result["failed_steps"] == []
+
+
+def test_changelog_and_rule_extraction_failures_are_visible():
+    with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
+         patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
+        registry = MockRegistry.return_value
+        registry.run_v1_pipeline.return_value = _PIPELINE_OK
+        registry.fetch_dependency_names.return_value = {"status": "ok", "names": ["requests"]}
+        registry.fetch_dependency_release_notes.return_value = _NOTES_OK
+        registry.analyze_changelog.return_value = {"status": "error", "error": "parse error"}
+        registry.generate_migration_plan.return_value = _MIGRATION_OK
+        extractor = MockExtractor.return_value
+        extractor.build_rules_dict.return_value = {}
+        extractor.last_extraction_status = "unavailable"
+
+        result = evidence_node(_base_state())
+
+    assert "rules_extraction:requests" in result["migration_analysis_failed_steps"]
+    assert "changelog:requests" in result["migration_analysis_failed_steps"]
+    assert result["migration_analysis_completeness"] < 1.0
+
+
 # ---------------------------------------------------------------------------
 # Deprecated API scan gating on repo_path
 # ---------------------------------------------------------------------------

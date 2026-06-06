@@ -19,7 +19,20 @@ def evidence_node(state: VersionPilotState) -> dict:
 
     provenance: list[dict] = list(state.get("provenance", []))
     failed_steps: list[str] = list(state.get("failed_steps", []))
+    migration_failed_steps: list[str] = list(state.get("migration_analysis_failed_steps", []))
+    migration_checks_total = 0
+    migration_checks_complete = 0
     trace: list[dict] = list(state.get("agent_trace", []))
+
+    def record_migration_check(step: str, status: str) -> None:
+        nonlocal migration_checks_total, migration_checks_complete
+        if status == "skipped":
+            return
+        migration_checks_total += 1
+        if status == "ok":
+            migration_checks_complete += 1
+        elif step not in migration_failed_steps:
+            migration_failed_steps.append(step)
 
     # ------------------------------------------------------------------
     # Step 1: V1 pipeline (repo metrics, dependency counts, security)
@@ -50,6 +63,7 @@ def evidence_node(state: VersionPilotState) -> dict:
     })
     if dep_names_result.get("status") == "error":
         failed_steps.append("fetch_dependency_names")
+    record_migration_check("fetch_dependency_names", dep_names_result.get("status", "ok"))
     dependency_names: list[str] = dep_names_result.get("names", [])
 
     # ------------------------------------------------------------------
@@ -65,13 +79,23 @@ def evidence_node(state: VersionPilotState) -> dict:
             "timestamp": _now_iso(),
             "status": notes_result.get("status", "ok"),
         })
+        record_migration_check(f"release_notes:{pkg_name}", notes_result.get("status", "ok"))
 
         notes_text = notes_result.get("notes_text", "")
         if not notes_text:
             continue
 
-        # LLM extracts deprecation rules (silently no-ops if LLM unavailable)
+        # LLM extracts deprecation rules and exposes whether an empty result was verified.
         pkg_rules = extractor.build_rules_dict(pkg_name, notes_text)
+        extraction_status = extractor.last_extraction_status
+        if extraction_status not in {"ok", "unavailable", "error", "skipped"}:
+            extraction_status = "ok"
+        provenance.append({
+            "source": f"rules_extraction:{pkg_name}",
+            "timestamp": _now_iso(),
+            "status": extraction_status,
+        })
+        record_migration_check(f"rules_extraction:{pkg_name}", extraction_status)
         if pkg_rules:
             combined_rules.update(pkg_rules)
 
@@ -82,6 +106,7 @@ def evidence_node(state: VersionPilotState) -> dict:
             "timestamp": _now_iso(),
             "status": changelog_result.get("status", "ok"),
         })
+        record_migration_check(f"changelog:{pkg_name}", changelog_result.get("status", "ok"))
         if changelog_result.get("status") == "ok":
             breaking_changes_list.append(changelog_result)
 
@@ -100,6 +125,7 @@ def evidence_node(state: VersionPilotState) -> dict:
             "timestamp": _now_iso(),
             "status": "skipped",
         })
+        record_migration_check("deprecated_api_scan", "skipped")
     elif not repo_path:
         clone_result = registry.clone_repo(state["repo_url"])
         provenance.append({
@@ -112,6 +138,7 @@ def evidence_node(state: VersionPilotState) -> dict:
             cloned_tmp = repo_path
         else:
             failed_steps.append("clone_repo")
+            record_migration_check("deprecated_api_scan", "error")
 
     if repo_path and "deprecated_api_scan" not in skip_steps:
         try:
@@ -129,8 +156,10 @@ def evidence_node(state: VersionPilotState) -> dict:
                 deprecated_findings = scan_result.get("findings", [])
             else:
                 failed_steps.append("deprecated_api_scan")
+            record_migration_check("deprecated_api_scan", scan_result.get("status", "ok"))
         except Exception as exc:
             failed_steps.append("deprecated_api_scan")
+            record_migration_check("deprecated_api_scan", "error")
             provenance.append({
                 "source": "deprecated_api_scan",
                 "timestamp": _now_iso(),
@@ -165,7 +194,13 @@ def evidence_node(state: VersionPilotState) -> dict:
     })
     if migration_result.get("status") == "error":
         failed_steps.append("migration_planner")
+    record_migration_check("migration_planner", migration_result.get("status", "ok"))
     migration_plan = migration_result if migration_result.get("status") == "ok" else {}
+    migration_completeness = (
+        round(migration_checks_complete / migration_checks_total, 2)
+        if migration_checks_total
+        else 1.0
+    )
 
     trace.append({
         "node": "evidence",
@@ -173,6 +208,8 @@ def evidence_node(state: VersionPilotState) -> dict:
         "tools_run": len(provenance),
         "deps_analyzed": len(dependency_names),
         "failed_steps": list(failed_steps),
+        "migration_analysis_completeness": migration_completeness,
+        "migration_analysis_failed_steps": list(migration_failed_steps),
     })
 
     return {
@@ -182,6 +219,8 @@ def evidence_node(state: VersionPilotState) -> dict:
         "deprecated_findings": deprecated_findings,
         "breaking_change_analysis": breaking_change_analysis,
         "migration_plan": migration_plan,
+        "migration_analysis_completeness": migration_completeness,
+        "migration_analysis_failed_steps": migration_failed_steps,
         "provenance": provenance,
         "failed_steps": failed_steps,
         "agent_trace": trace,

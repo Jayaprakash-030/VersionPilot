@@ -17,6 +17,8 @@ def test_create_initial_state_empty_collections():
     assert state["deprecated_findings"] == []
     assert state["agent_trace"] == []
     assert state["failed_steps"] == []
+    assert state["migration_analysis_completeness"] == 0.0
+    assert state["migration_analysis_failed_steps"] == []
     assert state["provenance"] == []
 
 

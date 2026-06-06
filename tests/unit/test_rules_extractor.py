@@ -43,6 +43,7 @@ def test_extract_rules_returns_empty_when_llm_unavailable():
         extractor = RulesExtractor(llm_client=None)
     result = extractor.extract_rules("flask", "Flask 1.0 removed flask.ext")
     assert result == []
+    assert extractor.last_extraction_status == "unavailable"
 
 
 def test_extract_rules_returns_empty_for_blank_notes():
@@ -56,6 +57,7 @@ def test_extract_rules_returns_empty_on_malformed_json():
     extractor = RulesExtractor(llm_client=_mock_llm("not valid json {{{"))
     result = extractor.extract_rules("flask", "some notes")
     assert result == []
+    assert extractor.last_extraction_status == "error"
 
 
 def test_extract_rules_returns_empty_when_llm_returns_non_list():
@@ -85,6 +87,7 @@ def test_build_rules_dict_returns_empty_when_no_rules():
     extractor = RulesExtractor(llm_client=_mock_llm("[]"))
     result = extractor.build_rules_dict("flask", "No deprecations here")
     assert result == {}
+    assert extractor.last_extraction_status == "ok"
 
 
 def test_build_rules_dict_skips_rules_missing_symbol():

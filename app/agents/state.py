@@ -21,6 +21,8 @@ class VersionPilotState(TypedDict):
     deprecated_findings: list[dict]
     breaking_change_analysis: dict
     migration_plan: dict
+    migration_analysis_completeness: float
+    migration_analysis_failed_steps: list[str]
 
     # Agent reasoning
     agent_plan: dict
@@ -62,6 +64,8 @@ def create_initial_state(
         deprecated_findings=[],
         breaking_change_analysis={},
         migration_plan={},
+        migration_analysis_completeness=0.0,
+        migration_analysis_failed_steps=[],
         agent_plan={},
         agent_trace=[],
         critic_feedback="",

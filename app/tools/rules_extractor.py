@@ -24,6 +24,8 @@ class RulesExtractor:
     """Extracts deprecation rules from package release notes via LLM."""
 
     def __init__(self, llm_client: Optional[LLMClient] = None) -> None:
+        self.last_extraction_status = "not_run"
+        self.last_extraction_error = ""
         if llm_client is not None:
             self.llm: Optional[LLMClient] = llm_client
         else:
@@ -31,16 +33,26 @@ class RulesExtractor:
 
     def extract_rules(self, package_name: str, notes_text: str) -> list[dict]:
         """Return a list of rule dicts, or [] if LLM unavailable / nothing found."""
-        if not self.llm or not notes_text.strip():
+        self.last_extraction_error = ""
+        if not notes_text.strip():
+            self.last_extraction_status = "skipped"
+            return []
+        if not self.llm:
+            self.last_extraction_status = "unavailable"
             return []
         user_prompt = f"Package: {package_name}\nRelease notes:\n{notes_text}"
         try:
             raw = self.llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=512)
             parsed = json.loads(raw)
             if isinstance(parsed, list):
+                self.last_extraction_status = "ok"
                 return parsed
+            self.last_extraction_status = "error"
+            self.last_extraction_error = "LLM response was not a JSON array"
             return []
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            self.last_extraction_status = "error"
+            self.last_extraction_error = str(exc)
             return []
 
     def build_rules_dict(self, package_name: str, notes_text: str) -> dict:

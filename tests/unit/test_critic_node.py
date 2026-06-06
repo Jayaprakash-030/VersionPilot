@@ -44,10 +44,20 @@ class TestDeterministicCheck:
         passed, _ = _deterministic_check(state)
         assert passed is True
 
-    def test_zero_deps_with_perfect_dep_score_fails(self):
+    def test_verified_zero_deps_with_perfect_dep_score_passes(self):
         state = _state(
             dependency_metrics={"total_dependencies": 0, "outdated_dependencies": 0},
             breakdown={"dependency_score": 100},
+            health_score=50.0,
+        )
+        passed, _ = _deterministic_check(state)
+        assert passed is True
+
+    def test_zero_deps_with_parser_failure_fails(self):
+        state = _state(
+            dependency_metrics={"total_dependencies": 0, "outdated_dependencies": 0},
+            breakdown={"dependency_score": 100},
+            failed_steps=["dependency_parser"],
             health_score=50.0,
         )
         passed, feedback = _deterministic_check(state)
@@ -170,6 +180,21 @@ class TestCriticNodeLLM:
         assert result["critic_passed"] is True
         trace_statuses = [e.get("status") for e in result["agent_trace"] if e.get("node") == "critic"]
         assert "fallback" in trace_statuses
+
+    @pytest.mark.parametrize("invalid_passed", ["false", 1, None])
+    @patch("app.agents.critic_node.LLMClient.is_available", return_value=True)
+    @patch("app.agents.critic_node.LLMClient")
+    def test_invalid_passed_type_falls_back(self, MockLLM, _mock_avail, invalid_passed):
+        mock_instance = MagicMock()
+        mock_instance.call.return_value = json.dumps({"passed": invalid_passed, "feedback": ""})
+        MockLLM.return_value = mock_instance
+
+        state = _state(health_score=95.0, failed_steps=["v1_pipeline"])
+        result = critic_node(state)
+
+        assert result["critic_passed"] is False
+        statuses = [e.get("status") for e in result["agent_trace"] if e.get("node") == "critic"]
+        assert "fallback" in statuses
 
 
 # ---------------------------------------------------------------------------

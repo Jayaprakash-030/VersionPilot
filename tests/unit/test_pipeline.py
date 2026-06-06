@@ -56,6 +56,9 @@ class TestPipelineDataQuality(unittest.TestCase):
         self.assertEqual(completeness, 0.65)
         self.assertEqual(confidence, 0.55)
 
+    def test_v1_pipeline_failure_has_zero_data_quality(self) -> None:
+        self.assertEqual(compute_data_quality(["v1_pipeline"]), (0.0, 0.0))
+
 
 class TestDetermineRiskLevel(unittest.TestCase):
     def test_normal_score_returns_risk_tier(self):
@@ -80,9 +83,9 @@ class TestDetermineRiskLevel(unittest.TestCase):
         from app.core.pipeline import determine_risk_level
         self.assertEqual(determine_risk_level(100.0, ["v1_pipeline"]), "Unknown")
 
-    def test_non_critical_failure_does_not_affect_risk(self):
+    def test_dependency_freshness_failure_returns_unknown(self):
         from app.core.pipeline import determine_risk_level
-        self.assertEqual(determine_risk_level(80.0, ["dependency_freshness"]), "Low")
+        self.assertEqual(determine_risk_level(80.0, ["dependency_freshness"]), "Unknown")
 
 
 class TestRunPipelineUnknownRisk(unittest.TestCase):
@@ -110,6 +113,24 @@ class TestRunPipelineUnknownRisk(unittest.TestCase):
         with patch("app.core.pipeline.fetch_repo_metrics", return_value=mock_repo), \
              patch("app.core.pipeline.fetch_dependencies", side_effect=DependencyParserError("fail")), \
              patch("app.core.pipeline.fetch_security_metrics", return_value=SecurityMetrics(0, 0, 0, 0)):
+            report = run_pipeline("https://github.com/test/repo")
+
+        self.assertEqual(report.risk_level, "Unknown")
+
+    def test_dependency_freshness_failure_produces_unknown_risk(self):
+        from unittest.mock import patch
+        from app.core.pipeline import run_pipeline
+        from app.core.dependency_freshness import DependencyFreshnessError
+        from app.core.models import RepoMetrics, SecurityMetrics
+
+        mock_repo = RepoMetrics(stars=100, forks=10, last_commit_days=5,
+                                last_release_days=10, open_issues=2, closed_issues=20)
+        with patch("app.core.pipeline.fetch_repo_metrics", return_value=mock_repo), \
+             patch("app.core.pipeline.fetch_dependencies", return_value=[]), \
+             patch("app.core.pipeline.count_outdated_dependencies",
+                   side_effect=DependencyFreshnessError("fail")), \
+             patch("app.core.pipeline.fetch_security_metrics",
+                   return_value=SecurityMetrics(0, 0, 0, 0)):
             report = run_pipeline("https://github.com/test/repo")
 
         self.assertEqual(report.risk_level, "Unknown")

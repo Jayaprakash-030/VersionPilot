@@ -18,7 +18,7 @@ Output format:
 Check for these red flags:
 - High health score (>80) but one or more data collection steps failed — the score is
   based on incomplete data and should not be trusted.
-- Zero dependencies parsed but dependency_score is 100 — parser likely failed.
+- Zero dependencies parsed with a parser failure but dependency_score is 100.
 - Low risk level but critical or high severity vulnerabilities present.
 - Any combination where a metric looks perfect but the underlying data is missing.
 
@@ -39,7 +39,8 @@ def _deterministic_check(state: VersionPilotState) -> tuple[bool, str]:
     dep_score = breakdown.get("dependency_score", None)
     dep_metrics = state.get("dependency_metrics", {})
     total_deps = dep_metrics.get("total_dependencies", None)
-    if total_deps == 0 and dep_score is not None and dep_score >= 100:
+    dependency_evidence_failed = "dependency_parser" in failed_steps or "v1_pipeline" in failed_steps
+    if dependency_evidence_failed and total_deps == 0 and dep_score is not None and dep_score >= 100:
         return False, "Zero dependencies parsed but dependency_score is 100 — parser likely failed"
 
     critical_vulns = security_metrics.get("critical", 0)
@@ -73,8 +74,16 @@ def critic_node(state: VersionPilotState) -> dict:
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=256)
             result = json.loads(raw)
-            passed = bool(result.get("passed", False))
-            feedback = result.get("feedback", "")
+            if not isinstance(result, dict):
+                raise ValueError("critic response must be a JSON object")
+            raw_passed = result.get("passed")
+            if not isinstance(raw_passed, bool):
+                raise ValueError("critic response 'passed' must be boolean")
+            raw_feedback = result.get("feedback", "")
+            if not isinstance(raw_feedback, str):
+                raise ValueError("critic response 'feedback' must be a string")
+            passed = raw_passed
+            feedback = raw_feedback
             trace.append({"node": "critic", "status": "complete", "passed": passed})
         except Exception:
             passed, feedback = _deterministic_check(state)

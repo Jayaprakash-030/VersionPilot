@@ -80,12 +80,16 @@ class TestTemplateReport:
 
     def test_data_quality_fields_present(self):
         state = _state(data_completeness=0.75, confidence_score=0.6,
-                       failed_steps=["v1_pipeline"])
+                       failed_steps=["v1_pipeline"],
+                       migration_analysis_completeness=0.5,
+                       migration_analysis_failed_steps=["changelog:flask"])
         report = _template_report(state)
         dq = report["data_quality"]
         assert dq["completeness"] == 0.75
         assert dq["confidence"] == 0.6
         assert "v1_pipeline" in dq["failed_steps"]
+        assert dq["migration_analysis_completeness"] == 0.5
+        assert "changelog:flask" in dq["migration_analysis_failed_steps"]
 
     def test_none_fields_handled_gracefully(self):
         # deprecated_findings and migration_plan may be None in initial state
@@ -129,6 +133,7 @@ class TestReportNodeFallback:
         assert result["final_report"]["critic"]["passed"] is False
         assert result["final_report"]["critic"]["retry_count"] == 2
         assert "High score" in result["final_report"]["critic"]["feedback"]
+        assert "Unverified risk" in result["final_report"]["summary"]
 
     @patch("app.agents.report_node.LLMClient.is_available", return_value=False)
     def test_passing_critic_preserves_normal_risk(self, _mock):
@@ -150,7 +155,7 @@ class TestReportNodeLLM:
         mock_instance.call.return_value = json.dumps(_canned_report())
         MockLLM.return_value = mock_instance
 
-        state = _state(health_score=72.0, risk_level="medium")
+        state = _state(health_score=72.0, risk_level="medium", critic_passed=True)
         result = report_node(state)
 
         assert result["final_report"]["summary"] == "The repo is in reasonable health."
@@ -244,3 +249,19 @@ class TestReportNodeLLM:
         assert "deprecated_findings" in user_prompt
         assert "failed_steps" in user_prompt
         assert "critic_feedback" in user_prompt
+
+    @patch("app.agents.report_node.LLMClient.is_available", return_value=True)
+    @patch("app.agents.report_node.LLMClient")
+    def test_llm_receives_unverified_effective_risk(self, MockLLM, _mock_avail):
+        mock_instance = MagicMock()
+        report = _canned_report(risk_level="Low")
+        report["summary"] = "This repository is Low risk."
+        mock_instance.call.return_value = json.dumps(report)
+        MockLLM.return_value = mock_instance
+
+        result = report_node(_state(risk_level="Low", critic_passed=False))
+
+        user_prompt = mock_instance.call.call_args[0][1]
+        assert "risk_level: Unverified" in user_prompt
+        assert "Low risk" not in result["final_report"]["summary"]
+        assert "Unverified risk" in result["final_report"]["summary"]

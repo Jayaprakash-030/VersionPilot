@@ -89,10 +89,11 @@ config/
 
 data/
   deprecation_rules.json  static fallback deprecation rules
-  benchmark_repos.txt
+  benchmark_repos.txt     legacy batch-run repository list
 
 eval/
-  run_eval.py           batch evaluation runner
+  run_eval.py             current batch evaluation runner
+  EVAL_REPORT.md          planned published evaluation results
 
 tests/
   unit/                 26 test files
@@ -147,18 +148,29 @@ python -m app.main https://github.com/psf/requests --mode agent --repo-path /pat
 --json                            # print JSON to stdout
 ```
 
-### Batch evaluation
+### Evaluation
 
 ```bash
+# Existing batch runner
 python -m eval.run_eval --repos-file data/benchmark_repos.txt --output eval/eval_report.json
 ```
+
+The focused portfolio evaluation plan is documented in [Eval.md](Eval.md). It measures:
+
+- Deprecated API scanner precision, recall, F1, and source-line accuracy
+- Scoring behavioral correctness
+- Controlled migration outcomes
+- Reliability under simulated API and LLM failures
+
+The completed metrics and limitations will be published in
+`eval/EVAL_REPORT.md`.
 
 ---
 
 ## Testing
 
 ```bash
-vpilot/bin/python -m pytest tests/ -v        # all 176 tests
+vpilot/bin/python -m pytest tests/ -v        # all tests
 vpilot/bin/python -m pytest tests/unit/ -v   # unit only
 ```
 

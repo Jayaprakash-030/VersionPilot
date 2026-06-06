@@ -68,10 +68,17 @@ def test_scoring_node_v1_pipeline_failure_gives_unknown():
 
 
 def test_scoring_node_critical_step_failure_gives_unknown():
-    for step in ("github_data_collector", "dependency_parser", "vulnerability_scanner"):
+    for step in ("github_data_collector", "dependency_parser", "dependency_freshness",
+                 "vulnerability_scanner"):
         state = _base_state(failed_steps=[step])
         result = scoring_node(state)
         assert result["risk_level"] == "Unknown", f"Expected Unknown for failed step: {step}"
+
+
+def test_scoring_node_v1_failure_has_zero_completeness():
+    result = scoring_node(_base_state(failed_steps=["v1_pipeline"]))
+    assert result["data_completeness"] == 0.0
+    assert result["confidence_score"] == 0.0
 
 
 def test_confidence_penalty_applied_after_recovery():
