@@ -78,7 +78,7 @@ app/
 │   ├── critic_node.py
 │   ├── recovery_node.py
 │   ├── report_node.py
-│   └── llm_client.py        Claude (Vertex AI) + Gemini fallback
+│   └── llm_client.py        OpenAI Responses API wrapper
 ├── tools/              LangGraph tool wrappers
 │   ├── tool_registry.py     wraps all modules as callable tools + clone_repo
 │   └── rules_extractor.py   LLM extracts deprecation rules from release notes
@@ -116,12 +116,9 @@ Copy `.env.example` to `.env` and fill in:
 
 ```
 GITHUB_TOKEN=...             # required for all modes
-GOOGLE_CLOUD_PROJECT=...     # required for agent mode (Vertex AI)
-CLOUD_ML_REGION=us-east5
-GOOGLE_API_KEY=...           # Gemini fallback
+OPENAI_API_KEY=...           # required for agent mode and rules extraction evals
+OPENAI_MODEL=gpt-5.4-nano    # optional override; defaults to gpt-5.4-nano
 ```
-
-For Vertex AI auth: `gcloud auth application-default login`
 
 ### Basic mode (no LLM required)
 
@@ -178,11 +175,13 @@ vpilot/bin/python -m pytest tests/unit/ -v   # unit only
 
 ## LLM Configuration
 
-Claude is accessed via **Google Cloud Vertex AI**. Gemini is used as a fallback when Claude quota is exceeded.
+OpenAI is accessed through the Responses API.
 
-Call order in `app/agents/llm_client.py`:
-1. Claude Sonnet 4.6 via `anthropic.AnthropicVertex`
-2. Gemini Flash via `langchain-google-genai` (fallback on quota/rate-limit errors)
+Default model in `app/agents/llm_client.py`:
+
+```text
+gpt-5.4-nano
+```
 
 All LLM nodes have deterministic fallbacks — agent mode degrades gracefully when credentials are unavailable.
 

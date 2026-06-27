@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from app.tools.rules_extractor import RulesExtractor
+from app.tools.rules_extractor import RulesExtractor, _SYSTEM_PROMPT
 
 
 def _mock_llm(response_text: str) -> MagicMock:
@@ -64,6 +64,11 @@ def test_extract_rules_returns_empty_when_llm_returns_non_list():
     extractor = RulesExtractor(llm_client=_mock_llm('{"symbol": "flask.ext"}'))
     result = extractor.extract_rules("flask", "some notes")
     assert result == []
+
+
+def test_system_prompt_distinguishes_future_removal_from_removed_now():
+    assert 'Use "high" only when the notes say the symbol is removed' in _SYSTEM_PROMPT
+    assert "planned\n  for removal in a future release but is still available now" in _SYSTEM_PROMPT
 
 
 # ---------------------------------------------------------------------------

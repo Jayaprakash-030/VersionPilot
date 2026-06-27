@@ -13,8 +13,16 @@ paths. Return a JSON array only — no explanation.
 Each item must have:
   "symbol":      the deprecated import path or attribute (e.g. "flask.ext")
   "replacement": what to use instead (empty string if none given)
-  "severity":    "high" if removed/breaking, "medium" if deprecated with warning, "low" otherwise
+  "severity":    "high", "medium", or "low"
   "note":        short human-readable reason
+
+Severity rules:
+- Use "high" only when the notes say the symbol is removed, no longer
+  available, deleted, or this release introduces a breaking API removal.
+- Use "medium" when the symbol is deprecated, emits warnings, or is planned
+  for removal in a future release but is still available now.
+- Use "low" for soft discouragement without a warning, removal plan, or
+  compatibility risk.
 
 If no deprecations are found, return [].
 """

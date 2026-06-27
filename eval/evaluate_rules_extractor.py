@@ -134,18 +134,11 @@ def evaluate_fixture(
     }
 
 
-def evaluate_suite(
-    fixtures_path: str | Path,
-    extractor: RulesExtractor | None = None,
+def _aggregate_results(
+    results: list[dict[str, object]],
+    fixture_names: list[str],
+    runs_per_fixture: int,
 ) -> dict[str, object]:
-    """Evaluate every rules-extractor fixture and return aggregate metrics."""
-    root = Path(fixtures_path)
-    results = [
-        evaluate_fixture(fixture, extractor=extractor)
-        for fixture in sorted(root.iterdir())
-        if fixture.is_dir()
-    ]
-
     actual: list[dict[str, str]] = []
     expected: list[dict[str, str]] = []
     for result in results:
@@ -170,13 +163,27 @@ def evaluate_suite(
     severity_accuracies = [
         float(result["severity_accuracy"]) for result in matched_results
     ]
+    passed_fixture_count = sum(
+        all(result["passed"] for result in results if result["fixture"] == fixture_name)
+        for fixture_name in fixture_names
+    )
+    failed_fixtures = [
+        fixture_name
+        for fixture_name in fixture_names
+        if any(
+            not result["passed"]
+            for result in results
+            if result["fixture"] == fixture_name
+        )
+    ]
 
     return {
-        "fixture_count": len(results),
-        "passed_fixture_count": sum(bool(result["passed"]) for result in results),
-        "failed_fixtures": [
-            result["fixture"] for result in results if not result["passed"]
-        ],
+        "fixture_count": len(fixture_names),
+        "runs_per_fixture": runs_per_fixture,
+        "run_count": len(results),
+        "passed_fixture_count": passed_fixture_count,
+        "passed_run_count": sum(bool(result["passed"]) for result in results),
+        "failed_fixtures": failed_fixtures,
         "valid_schema_rate": (
             sum(bool(result["valid_schema"]) for result in results) / len(results)
             if results
@@ -203,21 +210,77 @@ def evaluate_suite(
     }
 
 
+def evaluate_fixture_runs(
+    fixture_path: str | Path,
+    extractor: RulesExtractor | None = None,
+    runs_per_fixture: int = 1,
+) -> dict[str, object]:
+    """Evaluate one fixture multiple times and return aggregate metrics."""
+    fixture = Path(fixture_path)
+    extractor = extractor or RulesExtractor()
+    results = [
+        {
+            **evaluate_fixture(fixture, extractor=extractor),
+            "run_index": run_index,
+        }
+        for run_index in range(1, runs_per_fixture + 1)
+    ]
+    return _aggregate_results(results, [fixture.name], runs_per_fixture)
+
+
+def evaluate_suite(
+    fixtures_path: str | Path,
+    extractor: RulesExtractor | None = None,
+    runs_per_fixture: int = 1,
+) -> dict[str, object]:
+    """Evaluate every rules-extractor fixture and return aggregate metrics."""
+    root = Path(fixtures_path)
+    fixture_paths = sorted(fixture for fixture in root.iterdir() if fixture.is_dir())
+    extractor = extractor or RulesExtractor()
+    results = [
+        {
+            **evaluate_fixture(fixture, extractor=extractor),
+            "run_index": run_index,
+        }
+        for fixture in fixture_paths
+        for run_index in range(1, runs_per_fixture + 1)
+    ]
+    return _aggregate_results(
+        results,
+        [fixture.name for fixture in fixture_paths],
+        runs_per_fixture,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate rules-extractor fixtures")
     parser.add_argument("fixtures_path", help="Path to one fixture or a fixture root")
+    parser.add_argument("--output", help="Optional path to write the JSON report")
+    parser.add_argument(
+        "--runs-per-fixture",
+        type=int,
+        default=1,
+        help="Number of live extraction attempts per fixture",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.runs_per_fixture < 1:
+        raise SystemExit("--runs-per-fixture must be at least 1")
+
     path = Path(args.fixtures_path)
-    result = (
-        evaluate_fixture(path)
-        if (path / "release_notes.txt").exists()
-        else evaluate_suite(path)
-    )
-    print(json.dumps(result, indent=2))
+    if (path / "release_notes.txt").exists() and args.runs_per_fixture == 1:
+        result = evaluate_fixture(path)
+    elif (path / "release_notes.txt").exists():
+        result = evaluate_fixture_runs(path, runs_per_fixture=args.runs_per_fixture)
+    else:
+        result = evaluate_suite(path, runs_per_fixture=args.runs_per_fixture)
+    output = json.dumps(result, indent=2)
+    if args.output:
+        Path(args.output).write_text(output + "\n", encoding="utf-8")
+    print(output)
 
 
 if __name__ == "__main__":
