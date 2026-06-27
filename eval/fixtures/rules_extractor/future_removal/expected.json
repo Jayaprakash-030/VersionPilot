@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "examplelib.old_auth",
+    "replacement": "examplelib.auth",
+    "severity": "medium"
+  }
+]

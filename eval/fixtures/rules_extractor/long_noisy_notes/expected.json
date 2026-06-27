@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "examplelib.upload_legacy",
+    "replacement": "examplelib.upload",
+    "severity": "medium"
+  }
+]

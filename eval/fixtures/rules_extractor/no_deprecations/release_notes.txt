@@ -1,0 +1,2 @@
+Version 2.1 improves documentation, reduces startup time, and fixes a memory leak.
+No public APIs changed in this release.

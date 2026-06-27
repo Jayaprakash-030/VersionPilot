@@ -1,0 +1,7 @@
+Version 7.2 improves connection pooling, updates documentation, fixes Windows
+path handling, and reduces memory use during large uploads.
+
+Migration note: examplelib.upload_legacy is deprecated and emits a warning.
+Applications should migrate to examplelib.upload before version 8.0.
+
+This release also improves logging output and adds more type annotations.

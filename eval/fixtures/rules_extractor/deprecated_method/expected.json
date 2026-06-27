@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "examplelib.Client.send_sync",
+    "replacement": "examplelib.Client.send",
+    "severity": "medium"
+  }
+]

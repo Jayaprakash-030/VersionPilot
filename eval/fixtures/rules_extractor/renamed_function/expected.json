@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "examplelib.load_config",
+    "replacement": "examplelib.read_config",
+    "severity": "high"
+  }
+]

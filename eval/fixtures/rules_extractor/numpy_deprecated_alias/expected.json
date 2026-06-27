@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "numpy.bool",
+    "replacement": "bool",
+    "severity": "medium"
+  }
+]

@@ -4,12 +4,13 @@
 
 This is a portfolio-scale evaluation, not an academic benchmark.
 
-The evaluation should provide credible evidence for four claims:
+The evaluation should provide credible evidence for five claims:
 
 1. The deprecated API scanner accurately locates affected source code.
-2. The deterministic health score behaves consistently and safely.
-3. VersionPilot produces useful guidance for representative migrations.
-4. External API and LLM failures do not produce misleading healthy reports.
+2. The LLM extracts accurate deprecation rules from release notes.
+3. The deterministic health score behaves consistently and safely.
+4. VersionPilot produces useful guidance for representative migrations.
+5. External API and LLM failures do not produce misleading healthy reports.
 
 The final output is a committed `eval/EVAL_REPORT.md` containing measured
 results, example failures, and known limitations.
@@ -21,6 +22,7 @@ results, example failures, and known limitations.
 | Evaluation | Target Size | Primary Result |
 |---|---:|---|
 | Deprecated API scanner fixtures | 30-40 cases | Precision, recall, F1, location accuracy |
+| Rules extraction fixtures | 15-20 cases | Symbol F1, replacement/severity accuracy, valid response rate |
 | Scoring behavior checks | 10-15 cases | Passed invariants |
 | Controlled migration cases | 3-5 cases | Detection and recommendation usefulness |
 | Reliability scenarios | 8-10 cases | Correct fallback and trust behavior |
@@ -164,13 +166,180 @@ Verify:
 Report the number of passed behavioral checks:
 
 ```text
-Scoring behavioral checks: 14 / 14 passed
+Scoring behavioral checks: 15 / 15 passed
 Misleading verified-Low results under failure: 0
 ```
 
 ---
 
-## Evaluation 3: Controlled Migration Cases
+## Evaluation 3: Rules Extraction Quality
+
+### Purpose
+
+The scanner and migration planner depend on the deprecation rules produced by
+`RulesExtractor`. This evaluation measures whether the configured LLM converts
+release notes into accurate, usable structured rules.
+
+Keep this evaluation separate from scanner accuracy. Scanner fixtures use
+manually verified rules so scanner failures are not confused with extraction
+failures.
+
+### Dataset
+
+Create 15-20 controlled release-note cases under:
+
+```text
+eval/fixtures/rules_extractor/
+```
+
+Each case contains:
+
+```text
+metadata.json       package name and optional case metadata
+release_notes.txt   controlled release-note input
+expected.json       manually verified expected rules
+```
+
+Example `metadata.json`:
+
+```json
+{
+  "package": "flask"
+}
+```
+
+Example `expected.json`:
+
+```json
+[
+  {
+    "symbol": "flask.escape",
+    "replacement": "markupsafe.escape",
+    "severity": "high"
+  }
+]
+```
+
+### Cases To Include
+
+- Single deprecated symbol
+- Removed symbol
+- Multiple deprecated or removed symbols
+- Explicit replacement
+- No replacement provided
+- Import-path migration
+- Function and class deprecations
+- No deprecations
+- Breaking change that is not an API deprecation
+- Historical deprecation mentioned without a new deprecation
+- Ambiguous wording
+- Long or noisy release notes
+
+### Metrics
+
+- Symbol precision, recall, and F1
+- Replacement accuracy for correctly detected symbols
+- Severity accuracy for correctly detected symbols
+- Valid JSON and schema rate
+- Correct empty-result rate
+- Run-to-run consistency
+
+Do not score `note` wording by exact text match. Notes may be useful while using
+different wording.
+
+### Evaluation Layers
+
+#### Deterministic Contract Evaluation
+
+Use mocked LLM responses to verify:
+
+- Valid JSON parsing and schema conversion
+- Invalid JSON handling
+- Non-list response handling
+- Missing-field handling
+- Empty-result handling
+- LLM-unavailable behavior
+
+These checks validate implementation reliability, not live extraction quality.
+
+#### Live LLM Quality Evaluation
+
+Run the configured live LLM against every fixture multiple times:
+
+```bash
+vpilot/bin/python -m eval.evaluate_rules_extractor \
+  --runs-per-fixture 3 \
+  --output eval/rules_extractor_report.json
+```
+
+Live evaluation requires configured credentials and must record the model,
+evaluation date, run count, and any unavailable or failed calls. Compare
+normalized structured fields rather than exact JSON text.
+
+### Known Release-Note Coverage Limitation
+
+The current production fetcher usually passes the complete latest GitHub release
+body to `RulesExtractor`, with a PyPI description or summary as fallback. It
+does not fetch the full release-note history between the dependency version
+pinned by the analyzed repository and the latest available version.
+
+This can miss deprecations announced or removals completed in intermediate
+releases. Fetching only the pinned version's notes would also be insufficient,
+because those notes do not describe later changes.
+
+The future production flow should:
+
+1. Parse the repository's pinned or minimum dependency version.
+2. Determine the latest available version.
+3. Fetch changelog or release-note entries across that version range.
+4. Combine the entries in version order.
+5. Extract rules relevant to the complete upgrade path.
+
+The initial live rules-extraction evaluation measures the current latest-release
+behavior. Version-range release-note collection should be evaluated separately
+after it is implemented.
+
+### Post-Evaluation Feature: Compatible Upgrade-Path Planning
+
+After completing the current evaluation plan, VersionPilot should determine a
+compatible target version set before analyzing release notes and recommending
+migrations. The latest available version of one dependency may conflict with
+constraints imposed by other direct or transitive dependencies.
+
+VersionPilot should use an existing package resolver, such as `pip --dry-run`
+with a structured report or `uv`, rather than implementing dependency resolution
+itself. VersionPilot's responsibility would be to orchestrate and interpret the
+resolver output:
+
+1. Parse the repository's current dependency constraints and Python version.
+2. Propose candidate target versions.
+3. Ask the resolver whether the proposed version set is installable.
+4. Identify conflicts and required coordinated dependency upgrades.
+5. Fetch release notes across each validated upgrade range.
+6. Connect those changes to affected source code and migration guidance.
+7. Report whether the migration is compatible, blocked, or requires coordinated
+   upgrades.
+
+This feature requires its own controlled evaluation cases for compatible
+upgrades, resolvable coordinated upgrades, and unsatisfiable dependency
+conflicts. It is intentionally deferred until the current scanner, scoring,
+rules-extraction, reliability, and migration evaluations are complete.
+
+### Output
+
+Report deterministic contract results separately from live quality results:
+
+```text
+Rules extraction contract checks: X / X passed
+Live valid-response rate: ...%
+Live symbol precision / recall / F1: ... / ... / ...
+Replacement accuracy: ...%
+Severity accuracy: ...%
+```
+
+---
+
+## Evaluation 4: Controlled Migration Cases
 
 ### Purpose
 
@@ -226,7 +395,7 @@ This section should include at least one failure or limitation if one is found.
 
 ---
 
-## Evaluation 4: Reliability And Trust Behavior
+## Evaluation 5: Reliability And Trust Behavior
 
 ### Purpose
 
@@ -334,9 +503,12 @@ assert stable properties:
 eval/
 ├── fixtures/
 │   ├── deprecated_api/
+│   ├── rules_extractor/
 │   └── migration_cases/
 ├── metrics.py
 ├── evaluate_scanner.py
+├── evaluate_scoring.py
+├── evaluate_rules_extractor.py
 ├── evaluate_migrations.py
 ├── evaluate_reliability.py
 ├── run_eval.py
@@ -366,12 +538,13 @@ passes with `vpilot/bin/python -m pytest tests/unit`.
 |---|---|---:|
 | 1 | Deprecated API fixtures, metrics, and baseline | 1 day |
 | 2 | Scoring behavioral tests | 0.5 day |
-| 3 | Reliability scenarios | 1 day |
-| 4 | Three controlled migration cases | 1.5-2 days |
-| 5 | Real-repository smoke runs and operational measurements | 0.5 day |
-| 6 | Publish `EVAL_REPORT.md` | 0.5 day |
+| 3 | Rules extraction fixtures, contract checks, and live baseline | 1-1.5 days |
+| 4 | Reliability scenarios | 1 day |
+| 5 | Three controlled migration cases | 1.5-2 days |
+| 6 | Real-repository smoke runs and operational measurements | 0.5 day |
+| 7 | Publish `EVAL_REPORT.md` | 0.5 day |
 
-Expected total: approximately 4.5-5 days of focused work.
+Expected total: approximately 5.5-6.5 days of focused work.
 
 ---
 
@@ -397,6 +570,18 @@ Version: scoring_v1
 
 - Behavioral checks passed: ... / ...
 - Misleading verified-Low results under failure: ...
+
+## Rules Extraction
+
+| Metric | Result |
+|---|---:|
+| Contract checks passed | ... / ... |
+| Live valid-response rate | ... |
+| Symbol precision | ... |
+| Symbol recall | ... |
+| Symbol F1 | ... |
+| Replacement accuracy | ... |
+| Severity accuracy | ... |
 
 ## Controlled Migrations
 
@@ -432,6 +617,8 @@ Examples:
 
 - Achieved `X%` precision and `Y%` recall for deprecated API detection across
   `N` controlled fixtures.
+- Achieved `X%` symbol F1 and `Y%` replacement accuracy for live deprecation-rule
+  extraction across `N` controlled release-note fixtures.
 - Correctly located affected source lines in `X/N` migration cases.
 - Validated `X/N` migration recommendations by applying changes and running
   tests.

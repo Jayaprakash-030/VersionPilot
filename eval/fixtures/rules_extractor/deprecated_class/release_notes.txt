@@ -1,0 +1,2 @@
+The examplelib.LegacySession class is deprecated and emits a warning when
+instantiated. Use examplelib.Session instead.

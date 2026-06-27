@@ -1,0 +1,3 @@
+Version 6.0 removes examplelib.old_connect; use examplelib.connect instead.
+examplelib.legacy_timeout is deprecated and now emits a warning; use
+examplelib.timeout instead.

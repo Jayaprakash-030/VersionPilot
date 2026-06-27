@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "flask.escape",
+    "replacement": "markupsafe.escape",
+    "severity": "high"
+  }
+]

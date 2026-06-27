@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "examplelib.LegacySession",
+    "replacement": "examplelib.Session",
+    "severity": "medium"
+  }
+]

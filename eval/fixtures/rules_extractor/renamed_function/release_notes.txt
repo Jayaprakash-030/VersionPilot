@@ -1,0 +1,2 @@
+The examplelib.load_config function has been renamed to examplelib.read_config.
+The old load_config name is removed in this release.

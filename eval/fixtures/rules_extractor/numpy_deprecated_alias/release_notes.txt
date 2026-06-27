@@ -1,0 +1,2 @@
+The numpy.bool alias is deprecated and now emits a DeprecationWarning.
+Use the built-in bool type instead.

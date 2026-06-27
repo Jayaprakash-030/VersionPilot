@@ -1,0 +1,2 @@
+The maintainers are considering replacing examplelib.preview_api in a future
+release, but no deprecation decision has been made and the API remains supported.

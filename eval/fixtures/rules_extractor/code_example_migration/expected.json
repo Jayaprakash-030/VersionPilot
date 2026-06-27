@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "examplelib.open_legacy",
+    "replacement": "examplelib.open_resource",
+    "severity": "high"
+  }
+]

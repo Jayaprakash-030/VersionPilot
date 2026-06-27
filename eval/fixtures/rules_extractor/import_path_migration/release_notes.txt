@@ -1,0 +1,2 @@
+Requests 3.0 removes the vendored requests.packages.urllib3 import path.
+Applications must import urllib3 directly.

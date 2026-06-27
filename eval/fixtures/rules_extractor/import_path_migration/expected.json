@@ -1,0 +1,7 @@
+[
+  {
+    "symbol": "requests.packages.urllib3",
+    "replacement": "urllib3",
+    "severity": "high"
+  }
+]

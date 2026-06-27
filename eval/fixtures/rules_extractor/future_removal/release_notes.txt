@@ -1,0 +1,2 @@
+examplelib.old_auth is deprecated as of this release and emits a warning.
+It will be removed in version 5.0. Use examplelib.auth instead.

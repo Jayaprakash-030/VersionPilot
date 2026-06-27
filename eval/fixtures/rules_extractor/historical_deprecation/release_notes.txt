@@ -1,0 +1,3 @@
+Version 2.5 fixes a bug in examplelib.old_parser. Although old_parser was
+deprecated in version 1.0, it remains supported and this release introduces no
+new deprecations or removals.

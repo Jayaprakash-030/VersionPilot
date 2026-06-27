@@ -1,0 +1,2 @@
+Version 4.0 removes examplelib.old_parse and examplelib.LegacyClient.
+Use examplelib.parse and examplelib.Client respectively.

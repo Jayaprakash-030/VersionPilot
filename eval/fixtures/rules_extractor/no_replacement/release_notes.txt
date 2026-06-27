@@ -1,0 +1,2 @@
+Version 5.0 removes examplelib.experimental_legacy_mode.
+There is no direct replacement for this API.

@@ -1,0 +1,3 @@
+Version 3.0 changes the default cache directory from ~/.examplelib-cache to
+~/.cache/examplelib. This may require deployment configuration changes.
+No Python symbols or import paths were deprecated or removed.

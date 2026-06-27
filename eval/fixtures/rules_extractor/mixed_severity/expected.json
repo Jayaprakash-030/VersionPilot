@@ -1,0 +1,12 @@
+[
+  {
+    "symbol": "examplelib.old_connect",
+    "replacement": "examplelib.connect",
+    "severity": "high"
+  },
+  {
+    "symbol": "examplelib.legacy_timeout",
+    "replacement": "examplelib.timeout",
+    "severity": "medium"
+  }
+]

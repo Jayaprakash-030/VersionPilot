@@ -1,0 +1,12 @@
+[
+  {
+    "symbol": "examplelib.old_parse",
+    "replacement": "examplelib.parse",
+    "severity": "high"
+  },
+  {
+    "symbol": "examplelib.LegacyClient",
+    "replacement": "examplelib.Client",
+    "severity": "high"
+  }
+]

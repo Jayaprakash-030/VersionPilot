@@ -1,0 +1,9 @@
+The examplelib.open_legacy API was removed.
+
+Replace:
+
+    from examplelib import open_legacy
+
+with:
+
+    from examplelib import open_resource

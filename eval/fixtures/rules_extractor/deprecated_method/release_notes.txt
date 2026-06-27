@@ -1,0 +1,2 @@
+examplelib.Client.send_sync is deprecated. Call examplelib.Client.send instead.
+The deprecated method will continue to work with a warning during the 3.x series.
