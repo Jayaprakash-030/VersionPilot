@@ -60,7 +60,7 @@ app/
 │   ├── risk_scoring.py     weighted scoring (activity 30% / deps 40% / security 30%)
 │   ├── models.py           frozen dataclasses (RepoMetrics, DependencyMetrics, etc.)
 │   ├── github_client.py    GitHub API calls
-│   ├── dependency_parser.py  requirements.txt / pyproject.toml parser
+│   ├── dependency_parser.py  nested requirements.txt / pyproject.toml parser
 │   ├── dependency_freshness.py  version-aware outdated detection
 │   ├── vulnerability_scanner.py  OSV batch security scan
 │   └── retry.py            exponential backoff with jitter
@@ -212,7 +212,7 @@ All LLM nodes have deterministic fallbacks — agent mode degrades gracefully wh
 
 ## Known Limitations
 
-- `dependency_parser` only handles `requirements.txt` and `pyproject.toml`. Repos using `setup.py`/`setup.cfg` will have 0 dependencies parsed.
+- `dependency_parser` discovers nested `requirements.txt` and `pyproject.toml` files, but does not yet parse `setup.py`, `setup.cfg`, `Pipfile`, lockfiles, or non-Python manifests.
 - Release notes are fetched for the **latest PyPI version**, not the version pinned in requirements. Deprecation findings may include symbols not relevant until the user actually upgrades.
 - Auto-clone uses `--depth=1` (sufficient for AST scanning, no full git history).
 - Deprecated API scanning does not resolve symbols introduced only through wildcard imports such as `from package import *`.

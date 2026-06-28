@@ -5,6 +5,7 @@ from urllib.error import HTTPError
 from app.core.dependency_parser import (
     DependencyParserError,
     fetch_dependencies,
+    MAX_MANIFEST_FILES,
     parse_pyproject_specs,
     parse_pyproject_text,
     parse_requirements_specs,
@@ -83,19 +84,74 @@ requests = "^2.31.0"
 
     def test_fetch_dependencies_uses_available_source_when_other_fails(self) -> None:
         def fake_fetch(_repo_url: str, path: str, timeout_seconds: int = 8) -> str:
-            if path == "requirements.txt":
+            if path == "backend/requirements.txt":
                 raise HTTPError(url="", code=500, msg="server error", hdrs=None, fp=None)
-            if path == "pyproject.toml":
+            if path == "services/api/pyproject.toml":
                 return """
 [project]
 dependencies = ["fastapi>=0.110", "uvicorn==0.30.0"]
 """
             return ""
 
-        with patch("app.core.dependency_parser._fetch_file_content", side_effect=fake_fetch):
+        with patch(
+            "app.core.dependency_parser._discover_dependency_manifest_paths",
+            return_value=["backend/requirements.txt", "services/api/pyproject.toml"],
+        ), patch("app.core.dependency_parser._fetch_file_content", side_effect=fake_fetch):
             deps = fetch_dependencies("https://github.com/org/repo")
 
         self.assertEqual([d.name for d in deps], ["fastapi", "uvicorn"])
+
+    def test_fetch_dependencies_discovers_nested_requirements_and_pyproject(self) -> None:
+        def fake_fetch(_repo_url: str, path: str, timeout_seconds: int = 8) -> str:
+            if path == "backend/requirements.txt":
+                return "requests==2.31.0\nnumpy>=1.26\n"
+            if path == "services/api/pyproject.toml":
+                return """
+[project]
+dependencies = ["fastapi>=0.110", "requests==2.32.0"]
+"""
+            return ""
+
+        with patch(
+            "app.core.dependency_parser._discover_dependency_manifest_paths",
+            return_value=["backend/requirements.txt", "services/api/pyproject.toml"],
+        ), patch("app.core.dependency_parser._fetch_file_content", side_effect=fake_fetch):
+            deps = fetch_dependencies("https://github.com/org/repo")
+
+        self.assertEqual([d.name for d in deps], ["requests", "numpy", "fastapi"])
+        self.assertEqual(deps[0].version, "2.31.0")
+
+    def test_fetch_dependencies_returns_empty_when_no_manifests_found(self) -> None:
+        with patch(
+            "app.core.dependency_parser._discover_dependency_manifest_paths",
+            return_value=[],
+        ):
+            deps = fetch_dependencies("https://github.com/org/repo")
+
+        self.assertEqual(deps, [])
+
+    def test_discovered_manifest_count_is_limited(self) -> None:
+        manifest_paths = [f"service{i}/requirements.txt" for i in range(30)]
+
+        with patch(
+            "app.core.dependency_parser._fetch_default_branch",
+            return_value="main",
+        ), patch("app.core.dependency_parser.urlopen") as mock_urlopen:
+            response = mock_urlopen.return_value.__enter__.return_value
+            response.read.return_value = (
+                '{"tree": ['
+                + ",".join(
+                    f'{{"type": "blob", "path": "{path}"}}'
+                    for path in manifest_paths
+                )
+                + "]}"
+            ).encode("utf-8")
+
+            from app.core.dependency_parser import _discover_dependency_manifest_paths
+
+            discovered = _discover_dependency_manifest_paths("https://github.com/org/repo")
+
+        self.assertEqual(len(discovered), MAX_MANIFEST_FILES)
 
 
 if __name__ == "__main__":

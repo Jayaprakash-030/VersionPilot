@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import tomllib
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -13,6 +14,10 @@ from .retry import RetryError, run_with_retry
 
 class DependencyParserError(Exception):
     pass
+
+
+MANIFEST_FILENAMES = frozenset({"requirements.txt", "pyproject.toml"})
+MAX_MANIFEST_FILES = 20
 
 
 def _extract_name_version(dep: str) -> DependencySpec | None:
@@ -141,45 +146,117 @@ def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> s
     return base64.b64decode(encoded).decode("utf-8")
 
 
+def _fetch_default_branch(repo_url: str, timeout_seconds: int = 8) -> str:
+    ref = parse_repo_url(repo_url)
+    api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}"
+
+    request = Request(
+        api_url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "ai-health-inspector/0.1",
+        },
+    )
+
+    def _operation() -> dict:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    payload = run_with_retry(_operation)
+    branch = payload.get("default_branch")
+    return str(branch or "main")
+
+
+def _discover_dependency_manifest_paths(
+    repo_url: str,
+    timeout_seconds: int = 8,
+) -> list[str]:
+    ref = parse_repo_url(repo_url)
+    default_branch = _fetch_default_branch(repo_url, timeout_seconds=timeout_seconds)
+    api_url = (
+        f"https://api.github.com/repos/{ref.owner}/{ref.repo}"
+        f"/git/trees/{default_branch}?recursive=1"
+    )
+
+    request = Request(
+        api_url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "ai-health-inspector/0.1",
+        },
+    )
+
+    def _operation() -> dict:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    payload = run_with_retry(_operation)
+    paths: list[str] = []
+    for entry in payload.get("tree", []):
+        if entry.get("type") != "blob":
+            continue
+        path = str(entry.get("path", ""))
+        if Path(path).name in MANIFEST_FILENAMES:
+            paths.append(path)
+
+    return sorted(paths)[:MAX_MANIFEST_FILES]
+
+
+def _merge_dependency_specs(spec_groups: list[list[DependencySpec]]) -> list[DependencySpec]:
+    merged: list[DependencySpec] = []
+    seen_names: set[str] = set()
+    for specs in spec_groups:
+        for spec in specs:
+            if spec.name not in seen_names:
+                merged.append(spec)
+                seen_names.add(spec.name)
+    return merged
+
+
 def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[DependencySpec]:
-    requirements_deps: list[DependencySpec] = []
-    pyproject_deps: list[DependencySpec] = []
-    requirements_available = False
-    pyproject_available = False
+    dependency_groups: list[list[DependencySpec]] = []
+    manifest_available = False
     errors: list[str] = []
 
     try:
-        requirements_text = _fetch_file_content(repo_url, "requirements.txt", timeout_seconds=timeout_seconds)
-        requirements_deps = parse_requirements_specs(requirements_text)
-        requirements_available = True
+        manifest_paths = _discover_dependency_manifest_paths(
+            repo_url,
+            timeout_seconds=timeout_seconds,
+        )
     except HTTPError as exc:
-        if exc.code != 404:
-            errors.append(f"requirements.txt fetch failed: {exc}")
+        if exc.code == 404:
+            manifest_paths = []
+        else:
+            errors.append(f"dependency manifest discovery failed: {exc}")
+            manifest_paths = []
     except (RetryError, URLError, TimeoutError) as exc:
-        errors.append(f"requirements.txt fetch failed: {exc}")
+        errors.append(f"dependency manifest discovery failed: {exc}")
+        manifest_paths = []
 
-    try:
-        pyproject_text = _fetch_file_content(repo_url, "pyproject.toml", timeout_seconds=timeout_seconds)
-        pyproject_available = True
-        if pyproject_text:
-            pyproject_deps = parse_pyproject_specs(pyproject_text)
-    except HTTPError as exc:
-        if exc.code != 404:
-            errors.append(f"pyproject.toml fetch failed: {exc}")
-    except DependencyParserError as exc:
-        errors.append(f"pyproject.toml parse failed: {exc}")
-    except (RetryError, URLError, TimeoutError) as exc:
-        errors.append(f"pyproject.toml fetch failed: {exc}")
+    for path in manifest_paths:
+        try:
+            manifest_text = _fetch_file_content(
+                repo_url,
+                path,
+                timeout_seconds=timeout_seconds,
+            )
+            manifest_available = True
+            if Path(path).name == "requirements.txt":
+                dependency_groups.append(parse_requirements_specs(manifest_text))
+            elif Path(path).name == "pyproject.toml" and manifest_text:
+                dependency_groups.append(parse_pyproject_specs(manifest_text))
+        except HTTPError as exc:
+            if exc.code != 404:
+                errors.append(f"{path} fetch failed: {exc}")
+        except DependencyParserError as exc:
+            errors.append(f"{path} parse failed: {exc}")
+        except (RetryError, URLError, TimeoutError) as exc:
+            errors.append(f"{path} fetch failed: {exc}")
 
-    merged: list[DependencySpec] = []
-    seen_names: set[str] = set()
-    for spec in requirements_deps + pyproject_deps:
-        if spec.name not in seen_names:
-            merged.append(spec)
-            seen_names.add(spec.name)
+    merged = _merge_dependency_specs(dependency_groups)
 
     # If at least one dependency source is available, use what we have.
-    if requirements_available or pyproject_available:
+    if manifest_available:
         return merged
 
     # Neither file found: valid case, repo may not declare dependencies here.

@@ -15,6 +15,8 @@ the project is fully evaluated.
 | Scoring behavior checks | Complete baseline | 15 / 15 checks passed |
 | Controlled migration cases | Partial baseline | 3 / 3 cases passed |
 | Reliability scenarios | Partial baseline | 10 / 10 scenarios passed |
+| Basic real-repository smoke runs | Complete smoke baseline | 5 / 5 runs completed |
+| Agent-mode smoke run | Complete smoke baseline | 1 / 1 run completed |
 
 ## Deprecated API Scanner
 
@@ -187,17 +189,72 @@ instead of verified `Low`, even when the computed health score is high. Clone
 failure is recorded as a failed step and the deprecated API scan is marked
 incomplete for migration analysis.
 
+## Real-Repository Smoke Runs
+
+Command shape:
+
+```bash
+vpilot/bin/python -m app.main <repo-url> \
+  --mode basic \
+  --json \
+  --output eval/smoke_<name>.json \
+  --force
+```
+
+Run date: 2026-06-28
+
+| Repository | Mode | Risk | Health Score | Data Completeness | Confidence | Dependencies | Failed Steps |
+|---|---|---:|---:|---:|---:|---:|---|
+| `psf/requests` | basic | Medium | 70.09 | 1.00 | 0.90 | 7 | None |
+| `pallets/flask` | basic | Medium | 64.19 | 1.00 | 0.90 | 24 | None |
+| `encode/httpx` | basic | High | 47.28 | 1.00 | 0.90 | 27 | None |
+| `pydantic/pydantic` | basic | Low | 88.63 | 1.00 | 0.90 | 6 | None |
+| `fastapi/fastapi` | basic | Medium | 72.75 | 1.00 | 0.90 | 16 | None |
+
+These smoke runs are not labeled accuracy benchmarks. They verify that the
+basic pipeline completes on real public repositories, returns schema-valid JSON,
+and reports complete evidence when GitHub, dependency freshness, and OSV data
+are available.
+
+## Agent-Mode Smoke Run
+
+Command:
+
+```bash
+vpilot/bin/python -m app.main https://github.com/psf/requests \
+  --mode agent \
+  --json \
+  --output eval/smoke_agent_requests.json \
+  --force
+```
+
+Result:
+
+| Repository | Mode | Risk | Health Score | Data Completeness | Confidence | Migration Completeness | Critic Passed | Failed Steps |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| `psf/requests` | agent | Medium | 70.09 | 1.00 | 0.90 | 0.95 | Yes | None |
+
+Migration analysis notes:
+
+- `release_notes:certifi` failed, so migration analysis was 95% complete.
+- Deprecated API rules source was `dynamic`.
+- The agent surfaced urllib3 release-note risks around Python 3.9 and PyPy3.10
+  support removal.
+- These urllib3 findings are dependency release-note risks, not confirmed
+  source-code deprecated API findings.
+
 ## Pending Evaluations
 
 The following work is still required before calling the evaluation complete:
 
 1. Add post-migration test execution to more controlled migration cases where
    practical.
-2. Run real-repository smoke tests and record completion status, risk level,
-   data completeness, findings, recommendations, and runtime.
 
 ## Current Limitations
 
+- Dependency discovery now searches nested `requirements.txt` and
+  `pyproject.toml` files, but does not parse `setup.py`, `setup.cfg`, lockfiles,
+  or non-Python manifests.
 - Scanner accuracy is measured with manually verified rules, which isolates the
   scanner but does not by itself prove end-to-end migration quality.
 - The deprecated API scanner does not currently handle wildcard imports. This
