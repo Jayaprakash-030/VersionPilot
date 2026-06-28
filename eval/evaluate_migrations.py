@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +49,34 @@ def _plan_step_key(step: dict[str, Any]) -> tuple[str, str, str]:
     )
 
 
+def _run_migrated_project_tests(fixture: Path) -> dict[str, object]:
+    migrated_project = fixture / "migrated_project"
+    if not migrated_project.exists():
+        return {
+            "available": False,
+            "passed": None,
+            "command": "",
+            "stdout": "",
+            "stderr": "",
+        }
+
+    command = [sys.executable, "-m", "pytest", "-q"]
+    result = subprocess.run(
+        command,
+        cwd=migrated_project,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return {
+        "available": True,
+        "passed": result.returncode == 0,
+        "command": " ".join(command),
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip(),
+    }
+
+
 def evaluate_fixture(
     fixture_path: str | Path,
     extractor: RulesExtractor | None = None,
@@ -76,6 +106,12 @@ def evaluate_fixture(
     expected_plan_step_keys = {
         _plan_step_key(step) for step in expected_plan_steps
     }
+    migrated_tests = _run_migrated_project_tests(fixture)
+    tests_pass_after_fix = (
+        bool(migrated_tests["passed"])
+        if migrated_tests["available"]
+        else None
+    )
 
     return {
         "fixture": fixture.name,
@@ -90,6 +126,8 @@ def evaluate_fixture(
         "issue_detected": bool(finding_keys & expected_finding_keys),
         "correct_file_line": finding_keys == expected_finding_keys,
         "useful_recommendation": expected_plan_step_keys.issubset(plan_step_keys),
+        "migrated_tests": migrated_tests,
+        "tests_pass_after_fix": tests_pass_after_fix,
         "passed": finding_keys == expected_finding_keys
         and expected_plan_step_keys.issubset(plan_step_keys),
     }
@@ -120,6 +158,13 @@ def evaluate_suite(
         ),
         "useful_recommendation_count": sum(
             bool(result["useful_recommendation"]) for result in results
+        ),
+        "post_migration_test_case_count": sum(
+            bool(result["migrated_tests"]["available"])  # type: ignore[index]
+            for result in results
+        ),
+        "post_migration_tests_passed_count": sum(
+            result["tests_pass_after_fix"] is True for result in results
         ),
         "fixtures": results,
     }

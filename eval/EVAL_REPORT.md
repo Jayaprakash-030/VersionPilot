@@ -127,18 +127,22 @@ Result:
 | Issues detected | 3 |
 | Correct file/line results | 3 |
 | Useful recommendations | 3 |
+| Cases with post-migration tests | 1 |
+| Post-migration tests passed | 1 |
 
 Case details:
 
-| Case | Issue Detected | Correct File/Line | Useful Recommendation |
-|---|---:|---:|---:|
-| `flask_removed_escape` | Yes | Yes | Yes |
-| `requests_vendored_urllib3` | Yes | Yes | Yes |
-| `numpy_deprecated_bool_alias` | Yes | Yes | Yes |
+| Case | Issue Detected | Correct File/Line | Useful Recommendation | Tests Pass After Fix |
+|---|---:|---:|---:|---:|
+| `flask_removed_escape` | Yes | Yes | Yes | Yes |
+| `requests_vendored_urllib3` | Yes | Yes | Yes | Not measured |
+| `numpy_deprecated_bool_alias` | Yes | Yes | Yes | Not measured |
 
 Each case runs release notes through rules extraction, scans a small fixture
 project, and checks that the migration planner recommends the expected
-replacement.
+replacement. The Flask case also includes a migrated fixture project with a
+pytest check proving the recommended replacement preserves the expected HTML
+escaping behavior.
 
 ## Reliability Scenarios
 
@@ -187,8 +191,8 @@ incomplete for migration analysis.
 
 The following work is still required before calling the evaluation complete:
 
-1. Add additional controlled migration cases and include post-migration test
-   execution where practical.
+1. Add post-migration test execution to more controlled migration cases where
+   practical.
 2. Run real-repository smoke tests and record completion status, risk level,
    data completeness, findings, recommendations, and runtime.
 
