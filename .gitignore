@@ -4,7 +4,9 @@ Plan.md
 abc.txt
 artifacts/
 **/__pycache__
-config/
+config/*
+!config/scoring_v1.yaml
+!config/model_registry.json
 data/
 eval/*.json
 .DS_Store

@@ -86,6 +86,7 @@ app/
 
 config/
   scoring_v1.yaml       scoring weights and thresholds
+  model_registry.json   approved baseline registry
 
 data/
   deprecation_rules.json  static fallback deprecation rules
@@ -93,7 +94,10 @@ data/
 
 eval/
   run_eval.py             current batch evaluation runner
-  EVAL_REPORT.md          planned published evaluation results
+  EVAL_REPORT.md          published evaluation results
+
+pipelines/
+  promote_model.py         promotion gate for baseline approval
 
 tests/
   unit/                 26 test files
@@ -155,12 +159,38 @@ python -m eval.run_eval --repos-file data/benchmark_repos.txt --output eval/eval
 The focused portfolio evaluation plan is documented in [Eval.md](Eval.md). It measures:
 
 - Deprecated API scanner precision, recall, F1, and source-line accuracy
+- Rules extraction quality across repeated live LLM runs
 - Scoring behavioral correctness
 - Controlled migration outcomes
+- Post-migration test success on controlled fixes
 - Reliability under simulated API and LLM failures
 
-The completed metrics and limitations will be published in
-`eval/EVAL_REPORT.md`.
+The completed baseline is published in [eval/EVAL_REPORT.md](eval/EVAL_REPORT.md):
+
+| Evaluation | Result |
+|---|---:|
+| Deprecated API scanner fixtures | 29 / 30 fixtures passed |
+| Rules extraction fixtures | 48 / 48 live runs passed |
+| Scoring behavior checks | 15 / 15 checks passed |
+| Controlled migration cases | 3 / 3 cases passed |
+| Post-migration tests | 3 / 3 tests passed |
+| Reliability scenarios | 10 / 10 scenarios passed |
+
+### MLOps Baseline
+
+The current approved system baseline is recorded in
+[config/model_registry.json](config/model_registry.json). The model card is in
+[MODEL_CARD.md](MODEL_CARD.md).
+
+Run the promotion gate before approving changes to prompts, scoring weights,
+model configuration, or evaluation behavior:
+
+```bash
+vpilot/bin/python -m pipelines.promote_model
+```
+
+The gate validates the registry, checks the current evaluation artifacts, and
+runs focused evaluation unit tests.
 
 ---
 

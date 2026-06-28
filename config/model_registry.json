@@ -1,0 +1,25 @@
+{
+  "production": {
+    "system_version": "phase4_baseline",
+    "status": "approved",
+    "promoted_at": "2026-06-28",
+    "scoring_config": "config/scoring_v1.yaml",
+    "llm_provider": "openai",
+    "default_model": "gpt-5.4-nano",
+    "eval_report": "eval/EVAL_REPORT.md",
+    "eval_artifacts": {
+      "summary": "eval/EVAL_REPORT.md",
+      "rules_extractor": "eval/rules_extractor_report.json",
+      "migration": "eval/migration_report.json",
+      "reliability": "eval/reliability_report.json"
+    },
+    "quality_summary": {
+      "scanner_cases_passed": "29/30",
+      "rules_extractor_runs_passed": "48/48",
+      "scoring_checks_passed": "15/15",
+      "migration_cases_passed": "3/3",
+      "post_migration_tests_passed": "3/3",
+      "reliability_scenarios_passed": "10/10"
+    }
+  }
+}

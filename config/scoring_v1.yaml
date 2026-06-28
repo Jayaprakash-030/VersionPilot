@@ -1,0 +1,7 @@
+version: scoring_v1
+weights:
+  activity: 0.30
+  dependency: 0.40
+  security: 0.30
+freshness_policy:
+  include_gap_levels: ["major"]
