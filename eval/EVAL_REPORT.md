@@ -14,7 +14,7 @@ the project is fully evaluated.
 | Rules extraction fixtures | Complete multi-run baseline | 48 / 48 runs passed |
 | Scoring behavior checks | Complete baseline | 15 / 15 checks passed |
 | Controlled migration cases | Partial baseline | 3 / 3 cases passed |
-| Reliability scenarios | Partial baseline | 9 / 9 scenarios passed |
+| Reliability scenarios | Partial baseline | 10 / 10 scenarios passed |
 
 ## Deprecated API Scanner
 
@@ -153,8 +153,8 @@ Result:
 
 | Metric | Value |
 |---|---:|
-| Scenarios | 9 |
-| Passed scenarios | 9 |
+| Scenarios | 10 |
+| Passed scenarios | 10 |
 | Misleading successful migration results | 0 |
 | Misleading verified-Low results | 0 |
 
@@ -171,6 +171,7 @@ Covered scenarios:
 | Dependency freshness failure | Yes | No | Passed |
 | Vulnerability scanner failure | Yes | No | Passed |
 | V1 pipeline failure | Yes | No | Passed |
+| Repository clone failure | Yes | No | Passed |
 
 These scenarios verify that rules-extraction failures still produce evaluable
 output but do not get reported as successful controlled migrations. They also
@@ -178,7 +179,9 @@ verify that invalid report-LLM output falls back to a deterministic template
 while preserving factual fields such as risk level, health score, completeness,
 and confidence. Critic rejection is published as `Unverified` rather than a
 verified risk level. Critical evidence failures are published as `Unknown`
-instead of verified `Low`, even when the computed health score is high.
+instead of verified `Low`, even when the computed health score is high. Clone
+failure is recorded as a failed step and the deprecated API scan is marked
+incomplete for migration analysis.
 
 ## Pending Evaluations
 
@@ -186,8 +189,7 @@ The following work is still required before calling the evaluation complete:
 
 1. Add additional controlled migration cases and include post-migration test
    execution where practical.
-2. Add clone-failure reliability coverage if evaluating full agent execution.
-3. Run real-repository smoke tests and record completion status, risk level,
+2. Run real-repository smoke tests and record completion status, risk level,
    data completeness, findings, recommendations, and runtime.
 
 ## Current Limitations
@@ -199,5 +201,4 @@ The following work is still required before calling the evaluation complete:
   import *` and then called by bare name.
 - Controlled migration coverage currently has three cases.
 - Reliability coverage includes rules extraction, report LLM, critic rejection,
-  and critical deterministic evidence failures. Clone-failure coverage is still
-  pending if full agent execution is evaluated.
+  clone failure, and critical deterministic evidence failures.

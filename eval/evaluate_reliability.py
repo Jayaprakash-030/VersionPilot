@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from app.agents.evidence_node import evidence_node
 from app.agents.report_node import report_node
 from app.agents.scoring_node import scoring_node
 from app.agents.state import create_initial_state
@@ -247,6 +248,59 @@ def _critical_evidence_failure_scenario(failed_step: str) -> dict[str, Any]:
     }
 
 
+def _clone_failure_scenario() -> dict[str, Any]:
+    state = create_initial_state("https://github.com/example/repo", repo_path="")
+
+    with patch("app.agents.evidence_node.ToolRegistry") as mock_registry_class, patch(
+        "app.agents.evidence_node.RulesExtractor"
+    ) as mock_extractor:
+        registry = mock_registry_class.return_value
+        registry.run_v1_pipeline.return_value = {
+            "status": "ok",
+            "repo_metrics": {},
+            "dependency_metrics": {},
+            "security_metrics": {},
+            "failed_steps": [],
+        }
+        registry.fetch_dependency_names.return_value = {"status": "ok", "names": []}
+        registry.clone_repo.return_value = {
+            "status": "error",
+            "error": "network error",
+        }
+        registry.generate_migration_plan.return_value = {
+            "status": "ok",
+            "steps": [],
+            "total_steps": 0,
+            "effort_level": "low",
+        }
+        mock_extractor.return_value.build_rules_dict.return_value = {}
+
+        result = evidence_node(state)
+
+    failed_steps = result.get("failed_steps", [])
+    migration_failed_steps = result.get("migration_analysis_failed_steps", [])
+    clone_provenance = [
+        entry
+        for entry in result.get("provenance", [])
+        if entry.get("source") == "clone_repo"
+    ]
+
+    return {
+        "scenario": "clone_repo_failure",
+        "report_generated": isinstance(result, dict),
+        "clone_failed_step_recorded": "clone_repo" in failed_steps,
+        "deprecated_scan_failed_for_migration": "deprecated_api_scan"
+        in migration_failed_steps,
+        "clone_provenance_recorded": bool(clone_provenance)
+        and clone_provenance[-1].get("status") == "error",
+        "passed_reliability_check": isinstance(result, dict)
+        and "clone_repo" in failed_steps
+        and "deprecated_api_scan" in migration_failed_steps
+        and bool(clone_provenance)
+        and clone_provenance[-1].get("status") == "error",
+    }
+
+
 def evaluate_reliability_scenarios() -> dict[str, object]:
     """Evaluate all currently implemented reliability scenarios."""
     rules_result = evaluate_rules_extraction_failure_scenarios()
@@ -257,6 +311,7 @@ def evaluate_reliability_scenarios() -> dict[str, object]:
         _critical_evidence_failure_scenario(step)
         for step in CRITICAL_FAILURE_STEPS
     )
+    scenarios.append(_clone_failure_scenario())
 
     return {
         "scenario_count": len(scenarios),

@@ -37,8 +37,8 @@ def test_rules_extraction_failures_do_not_pass_migration_case():
 def test_all_reliability_scenarios_include_report_llm_fallback():
     result = evaluate_reliability_scenarios()
 
-    assert result["scenario_count"] == 9
-    assert result["passed_scenario_count"] == 9
+    assert result["scenario_count"] == 10
+    assert result["passed_scenario_count"] == 10
     assert result["misleading_success_count"] == 0
     assert result["misleading_verified_low_count"] == 0
 
@@ -70,6 +70,13 @@ def test_all_reliability_scenarios_include_report_llm_fallback():
         assert scenario["misleading_verified_low"] is False
         assert scenario["passed_reliability_check"] is True
 
+    clone_scenario = scenarios["clone_repo_failure"]
+    assert clone_scenario["report_generated"] is True
+    assert clone_scenario["clone_failed_step_recorded"] is True
+    assert clone_scenario["deprecated_scan_failed_for_migration"] is True
+    assert clone_scenario["clone_provenance_recorded"] is True
+    assert clone_scenario["passed_reliability_check"] is True
+
 
 def test_main_writes_reliability_output_file(tmp_path: Path):
     output_path = tmp_path / "reliability_report.json"
@@ -81,6 +88,6 @@ def test_main_writes_reliability_output_file(tmp_path: Path):
         main()
 
     report = json.loads(output_path.read_text(encoding="utf-8"))
-    assert report["scenario_count"] == 9
+    assert report["scenario_count"] == 10
     assert report["misleading_success_count"] == 0
     assert report["misleading_verified_low_count"] == 0
