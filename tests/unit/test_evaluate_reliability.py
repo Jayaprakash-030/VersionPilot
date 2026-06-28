@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from eval.evaluate_reliability import (
+    CRITICAL_FAILURE_STEPS,
     evaluate_reliability_scenarios,
     evaluate_rules_extraction_failure_scenarios,
     main,
@@ -36,9 +37,10 @@ def test_rules_extraction_failures_do_not_pass_migration_case():
 def test_all_reliability_scenarios_include_report_llm_fallback():
     result = evaluate_reliability_scenarios()
 
-    assert result["scenario_count"] == 4
-    assert result["passed_scenario_count"] == 4
+    assert result["scenario_count"] == 9
+    assert result["passed_scenario_count"] == 9
     assert result["misleading_success_count"] == 0
+    assert result["misleading_verified_low_count"] == 0
 
     scenarios = {
         scenario["scenario"]: scenario
@@ -60,6 +62,14 @@ def test_all_reliability_scenarios_include_report_llm_fallback():
     assert critic_scenario["factual_fields_preserved"] is True
     assert critic_scenario["passed_reliability_check"] is True
 
+    for failed_step in CRITICAL_FAILURE_STEPS:
+        scenario = scenarios[f"critical_evidence_failure:{failed_step}"]
+        assert scenario["report_generated"] is True
+        assert scenario["risk_level"] == "Unknown"
+        assert scenario["failed_step_reported"] is True
+        assert scenario["misleading_verified_low"] is False
+        assert scenario["passed_reliability_check"] is True
+
 
 def test_main_writes_reliability_output_file(tmp_path: Path):
     output_path = tmp_path / "reliability_report.json"
@@ -71,5 +81,6 @@ def test_main_writes_reliability_output_file(tmp_path: Path):
         main()
 
     report = json.loads(output_path.read_text(encoding="utf-8"))
-    assert report["scenario_count"] == 4
+    assert report["scenario_count"] == 9
     assert report["misleading_success_count"] == 0
+    assert report["misleading_verified_low_count"] == 0

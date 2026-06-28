@@ -7,11 +7,19 @@ from typing import Any
 from unittest.mock import patch
 
 from app.agents.report_node import report_node
+from app.agents.scoring_node import scoring_node
 from app.agents.state import create_initial_state
 from app.tools.rules_extractor import RulesExtractor
 from eval.evaluate_migrations import evaluate_fixture as evaluate_migration_fixture
 
 MIGRATION_FIXTURE = "eval/fixtures/migration_cases/flask_removed_escape"
+CRITICAL_FAILURE_STEPS = [
+    "github_data_collector",
+    "dependency_parser",
+    "dependency_freshness",
+    "vulnerability_scanner",
+    "v1_pipeline",
+]
 
 
 class _UnavailableRulesExtractor:
@@ -190,12 +198,65 @@ def _critic_rejected_report_scenario() -> dict[str, Any]:
     }
 
 
+def _critical_evidence_failure_scenario(failed_step: str) -> dict[str, Any]:
+    state = create_initial_state("https://github.com/example/repo")
+    state.update(
+        {
+            "repo_metrics": {
+                "stars": 100,
+                "forks": 20,
+                "last_commit_days": 1,
+                "last_release_days": 5,
+                "open_issues": 0,
+                "closed_issues": 100,
+            },
+            "dependency_metrics": {
+                "total_dependencies": 10,
+                "outdated_dependencies": 0,
+            },
+            "security_metrics": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+            },
+            "failed_steps": [failed_step],
+            "critic_passed": True,
+        }
+    )
+
+    scored = {**state, **scoring_node(state)}
+    with patch("app.agents.report_node.LLMClient.is_available", return_value=False):
+        report_result = report_node(scored)
+
+    final_report = report_result["final_report"]
+    risk_level = final_report.get("risk_level", "")
+    failed_steps = final_report.get("data_quality", {}).get("failed_steps", [])
+
+    return {
+        "scenario": f"critical_evidence_failure:{failed_step}",
+        "report_generated": isinstance(final_report, dict),
+        "failed_step": failed_step,
+        "risk_level": risk_level,
+        "health_score": final_report.get("health_score"),
+        "failed_step_reported": failed_step in failed_steps,
+        "misleading_verified_low": risk_level == "Low",
+        "passed_reliability_check": isinstance(final_report, dict)
+        and risk_level == "Unknown"
+        and failed_step in failed_steps,
+    }
+
+
 def evaluate_reliability_scenarios() -> dict[str, object]:
     """Evaluate all currently implemented reliability scenarios."""
     rules_result = evaluate_rules_extraction_failure_scenarios()
     scenarios = list(rules_result["scenarios"])
     scenarios.append(_report_llm_invalid_json_scenario())
     scenarios.append(_critic_rejected_report_scenario())
+    scenarios.extend(
+        _critical_evidence_failure_scenario(step)
+        for step in CRITICAL_FAILURE_STEPS
+    )
 
     return {
         "scenario_count": len(scenarios),
@@ -204,6 +265,10 @@ def evaluate_reliability_scenarios() -> dict[str, object]:
         ),
         "misleading_success_count": sum(
             bool(scenario.get("misleading_success", False)) for scenario in scenarios
+        ),
+        "misleading_verified_low_count": sum(
+            bool(scenario.get("misleading_verified_low", False))
+            for scenario in scenarios
         ),
         "scenarios": scenarios,
     }
