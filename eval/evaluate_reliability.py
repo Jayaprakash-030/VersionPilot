@@ -4,7 +4,10 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+from app.agents.report_node import report_node
+from app.agents.state import create_initial_state
 from app.tools.rules_extractor import RulesExtractor
 from eval.evaluate_migrations import evaluate_fixture as evaluate_migration_fixture
 
@@ -75,6 +78,137 @@ def evaluate_rules_extraction_failure_scenarios(
     }
 
 
+def _create_report_state() -> dict[str, Any]:
+    state = create_initial_state("https://github.com/example/repo")
+    state.update(
+        {
+            "health_score": 72.5,
+            "risk_level": "Medium",
+            "data_completeness": 0.9,
+            "confidence_score": 0.8,
+            "critic_passed": True,
+            "deprecated_findings": [
+                {
+                    "package": "flask",
+                    "symbol": "flask.escape",
+                    "file_path": "app.py",
+                    "line": 5,
+                    "replacement": "markupsafe.escape",
+                    "severity": "high",
+                }
+            ],
+            "migration_plan": {
+                "steps": [
+                    {
+                        "type": "deprecated_api_replacement",
+                        "package": "flask",
+                        "symbol": "flask.escape",
+                        "action": "markupsafe.escape",
+                        "severity": "high",
+                    }
+                ]
+            },
+        }
+    )
+    return state
+
+
+def _report_llm_invalid_json_scenario() -> dict[str, Any]:
+    state = _create_report_state()
+
+    with patch("app.agents.report_node.LLMClient.is_available", return_value=True), patch(
+        "app.agents.report_node.LLMClient"
+    ) as mock_llm:
+        mock_llm.return_value.call.return_value = "not valid json"
+        result = report_node(state)
+
+    final_report = result["final_report"]
+    trace_statuses = [entry.get("status") for entry in result.get("agent_trace", [])]
+    required_keys = {
+        "summary",
+        "health_score",
+        "risk_level",
+        "key_findings",
+        "migration_recommendations",
+        "data_quality",
+        "critic",
+    }
+    factual_fields_preserved = (
+        final_report.get("health_score") == 72.5
+        and final_report.get("risk_level") == "Medium"
+        and final_report.get("data_quality", {}).get("completeness") == 0.9
+        and final_report.get("data_quality", {}).get("confidence") == 0.8
+    )
+
+    return {
+        "scenario": "report_llm_invalid_json",
+        "report_generated": isinstance(final_report, dict),
+        "fallback_used": "fallback" in trace_statuses,
+        "required_keys_present": required_keys.issubset(final_report),
+        "factual_fields_preserved": factual_fields_preserved,
+        "passed_reliability_check": isinstance(final_report, dict)
+        and "fallback" in trace_statuses
+        and required_keys.issubset(final_report)
+        and factual_fields_preserved,
+    }
+
+
+def _critic_rejected_report_scenario() -> dict[str, Any]:
+    state = _create_report_state()
+    state.update(
+        {
+            "critic_passed": False,
+            "critic_feedback": "Report could not be verified",
+            "retry_count": 2,
+        }
+    )
+
+    with patch("app.agents.report_node.LLMClient.is_available", return_value=False):
+        result = report_node(state)
+
+    final_report = result["final_report"]
+    critic = final_report.get("critic", {})
+    factual_fields_preserved = (
+        final_report.get("health_score") == 72.5
+        and final_report.get("risk_level") == "Unverified"
+        and final_report.get("data_quality", {}).get("completeness") == 0.9
+        and final_report.get("data_quality", {}).get("confidence") == 0.8
+    )
+
+    return {
+        "scenario": "critic_rejected_report",
+        "report_generated": isinstance(final_report, dict),
+        "risk_level": final_report.get("risk_level", ""),
+        "critic_passed": critic.get("passed"),
+        "critic_feedback_present": bool(critic.get("feedback")),
+        "factual_fields_preserved": factual_fields_preserved,
+        "passed_reliability_check": isinstance(final_report, dict)
+        and final_report.get("risk_level") == "Unverified"
+        and critic.get("passed") is False
+        and bool(critic.get("feedback"))
+        and factual_fields_preserved,
+    }
+
+
+def evaluate_reliability_scenarios() -> dict[str, object]:
+    """Evaluate all currently implemented reliability scenarios."""
+    rules_result = evaluate_rules_extraction_failure_scenarios()
+    scenarios = list(rules_result["scenarios"])
+    scenarios.append(_report_llm_invalid_json_scenario())
+    scenarios.append(_critic_rejected_report_scenario())
+
+    return {
+        "scenario_count": len(scenarios),
+        "passed_scenario_count": sum(
+            bool(scenario["passed_reliability_check"]) for scenario in scenarios
+        ),
+        "misleading_success_count": sum(
+            bool(scenario.get("misleading_success", False)) for scenario in scenarios
+        ),
+        "scenarios": scenarios,
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate reliability scenarios")
     parser.add_argument(
@@ -86,7 +220,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    result = evaluate_rules_extraction_failure_scenarios()
+    result = evaluate_reliability_scenarios()
     output = json.dumps(result, indent=2)
     if args.output:
         Path(args.output).write_text(output + "\n", encoding="utf-8")

@@ -11,10 +11,10 @@ the project is fully evaluated.
 | Evaluation | Status | Result |
 |---|---|---:|
 | Deprecated API scanner fixtures | Complete baseline | 29 / 30 fixtures passed |
-| Rules extraction fixtures | Complete single-run baseline | 16 / 16 fixtures passed |
+| Rules extraction fixtures | Complete multi-run baseline | 48 / 48 runs passed |
 | Scoring behavior checks | Complete baseline | 15 / 15 checks passed |
-| Controlled migration cases | Partial baseline | 2 / 2 cases passed |
-| Reliability scenarios | Partial baseline | 2 / 2 scenarios passed |
+| Controlled migration cases | Partial baseline | 3 / 3 cases passed |
+| Reliability scenarios | Partial baseline | 4 / 4 scenarios passed |
 
 ## Deprecated API Scanner
 
@@ -59,7 +59,7 @@ Model configuration:
 ```text
 Provider: OpenAI
 Default model: gpt-5.4-nano
-Runs per fixture: 1
+Runs per fixture: 3
 ```
 
 Result:
@@ -67,8 +67,11 @@ Result:
 | Metric | Value |
 |---|---:|
 | Fixtures | 16 |
-| Runs | 16 |
+| Runs | 48 |
 | Passed fixtures | 16 |
+| Passed runs | 48 |
+| Consistent fixtures | 16 |
+| Consistency rate | 1.0000 |
 | Valid schema rate | 1.0000 |
 | Correct empty-result rate | 1.0000 |
 | Symbol precision | 1.0000 |
@@ -84,6 +87,8 @@ Notes:
   removals: current removed or breaking APIs are `high`; deprecated APIs that
   warn or will be removed later are `medium`.
 - After that prompt update, the full single-run fixture suite passed.
+- A later three-run consistency evaluation also passed all 48 runs with no
+  inconsistent fixtures.
 
 ## Scoring Behavior
 
@@ -117,11 +122,11 @@ Result:
 
 | Metric | Value |
 |---|---:|
-| Cases | 2 |
-| Passed cases | 2 |
-| Issues detected | 2 |
-| Correct file/line results | 2 |
-| Useful recommendations | 2 |
+| Cases | 3 |
+| Passed cases | 3 |
+| Issues detected | 3 |
+| Correct file/line results | 3 |
+| Useful recommendations | 3 |
 
 Case details:
 
@@ -129,6 +134,7 @@ Case details:
 |---|---:|---:|---:|
 | `flask_removed_escape` | Yes | Yes | Yes |
 | `requests_vendored_urllib3` | Yes | Yes | Yes |
+| `numpy_deprecated_bool_alias` | Yes | Yes | Yes |
 
 Each case runs release notes through rules extraction, scans a small fixture
 project, and checks that the migration planner recommends the expected
@@ -147,8 +153,8 @@ Result:
 
 | Metric | Value |
 |---|---:|
-| Scenarios | 2 |
-| Passed scenarios | 2 |
+| Scenarios | 4 |
+| Passed scenarios | 4 |
 | Misleading successful migration results | 0 |
 
 Covered scenarios:
@@ -157,32 +163,34 @@ Covered scenarios:
 |---|---:|---:|---:|
 | Rules extractor unavailable | Yes | No | Passed |
 | Rules extractor malformed JSON | Yes | No | Passed |
+| Report LLM invalid JSON | Yes | No | Passed |
+| Critic rejected report | Yes | No | Passed |
 
 These scenarios verify that rules-extraction failures still produce evaluable
-output, but do not get reported as successful controlled migrations.
+output but do not get reported as successful controlled migrations. They also
+verify that invalid report-LLM output falls back to a deterministic template
+while preserving factual fields such as risk level, health score, completeness,
+and confidence. Critic rejection is published as `Unverified` rather than a
+verified risk level.
 
 ## Pending Evaluations
 
 The following work is still required before calling the evaluation complete:
 
-1. Run rules extraction with multiple live attempts per fixture and record
-   consistency.
-2. Add additional controlled migration cases and include post-migration test
+1. Add additional controlled migration cases and include post-migration test
    execution where practical.
-3. Expand reliability scenarios for GitHub, dependency parsing, OSV, clone,
+2. Expand reliability scenarios for GitHub, dependency parsing, OSV, clone,
    report LLM, and critic failures.
-4. Run real-repository smoke tests and record completion status, risk level,
+3. Run real-repository smoke tests and record completion status, risk level,
    data completeness, findings, recommendations, and runtime.
 
 ## Current Limitations
 
-- Rules extraction has only a single-run live baseline so far. Multi-run
-  consistency is not yet measured.
 - Scanner accuracy is measured with manually verified rules, which isolates the
   scanner but does not by itself prove end-to-end migration quality.
 - The deprecated API scanner does not currently handle wildcard imports. This
   can miss usages where the deprecated symbol is introduced by `from package
   import *` and then called by bare name.
-- Controlled migration coverage currently has two cases.
+- Controlled migration coverage currently has three cases.
 - Reliability coverage currently includes rules-extraction failure handling
   only; broader pipeline and agent failure scenarios are still pending.

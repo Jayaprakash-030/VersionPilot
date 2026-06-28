@@ -79,6 +79,31 @@ def test_evaluate_fixture_detects_requests_vendored_urllib3_case():
     assert result["passed"] is True
 
 
+def test_evaluate_fixture_detects_numpy_deprecated_bool_alias_case():
+    rules = {
+        "numpy": {
+            "deprecated_symbols": {
+                "numpy.bool": {
+                    "replacement": "bool",
+                    "severity": "medium",
+                    "note": "Deprecated alias for built-in bool",
+                }
+            }
+        }
+    }
+
+    result = evaluate_fixture(
+        "eval/fixtures/migration_cases/numpy_deprecated_bool_alias",
+        extractor=_mock_extractor(rules),
+    )
+
+    assert result["fixture"] == "numpy_deprecated_bool_alias"
+    assert result["issue_detected"] is True
+    assert result["correct_file_line"] is True
+    assert result["useful_recommendation"] is True
+    assert result["passed"] is True
+
+
 def test_evaluate_suite_aggregates_migration_cases():
     rules = {
         "flask": {
@@ -96,6 +121,14 @@ def test_evaluate_suite_aggregates_migration_cases():
                     "severity": "high",
                 }
             }
+        },
+        "numpy": {
+            "deprecated_symbols": {
+                "numpy.bool": {
+                    "replacement": "bool",
+                    "severity": "medium",
+                }
+            }
         }
     }
 
@@ -104,12 +137,12 @@ def test_evaluate_suite_aggregates_migration_cases():
         extractor=_mock_extractor(rules),
     )
 
-    assert result["fixture_count"] == 2
-    assert result["passed_fixture_count"] == 2
+    assert result["fixture_count"] == 3
+    assert result["passed_fixture_count"] == 3
     assert result["failed_fixtures"] == []
-    assert result["issue_detected_count"] == 2
-    assert result["correct_file_line_count"] == 2
-    assert result["useful_recommendation_count"] == 2
+    assert result["issue_detected_count"] == 3
+    assert result["correct_file_line_count"] == 3
+    assert result["useful_recommendation_count"] == 3
 
 
 def test_main_writes_output_file_when_requested(tmp_path: Path):

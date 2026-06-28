@@ -1,0 +1,19 @@
+{
+  "findings": [
+    {
+      "symbol": "numpy.bool",
+      "file_path": "arrays.py",
+      "line": 5,
+      "replacement": "bool",
+      "severity": "medium"
+    }
+  ],
+  "plan_steps": [
+    {
+      "type": "deprecated_api_replacement",
+      "symbol": "numpy.bool",
+      "action": "bool",
+      "severity": "medium"
+    }
+  ]
+}

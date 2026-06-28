@@ -1,0 +1,4 @@
+NumPy has deprecated aliases for built-in Python scalar types.
+
+The numpy.bool alias is deprecated and emits a warning. Use the built-in bool
+type instead.
