@@ -36,6 +36,11 @@ def validate_registry(registry_path: Path = REGISTRY_PATH) -> list[str]:
     registry = _load_json(registry_path)
     production = registry.get("production", {})
 
+    _expect(
+        production.get("system_version") == "versionpilot-python-v1.0",
+        "registry system version is not versionpilot-python-v1.0",
+        failures,
+    )
     _expect(production.get("status") == "approved", "registry production status is not approved", failures)
     _expect(
         production.get("scoring_config") == "config/scoring_v1.yaml",

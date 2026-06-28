@@ -1,6 +1,6 @@
 {
   "production": {
-    "system_version": "phase4_baseline",
+    "system_version": "versionpilot-python-v1.0",
     "status": "approved",
     "promoted_at": "2026-06-28",
     "scoring_config": "config/scoring_v1.yaml",

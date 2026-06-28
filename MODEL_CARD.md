@@ -12,13 +12,13 @@ migration path?
 ```
 
 The current approved baseline is recorded in
-`config/model_registry.json` as `phase4_baseline`.
+`config/model_registry.json` as `versionpilot-python-v1.0`.
 
 ## Approved Baseline
 
 | Field | Value |
 |---|---|
-| System version | `phase4_baseline` |
+| System version | `versionpilot-python-v1.0` |
 | Status | `approved` |
 | Promoted at | `2026-06-28` |
 | Scoring config | `config/scoring_v1.yaml` |
