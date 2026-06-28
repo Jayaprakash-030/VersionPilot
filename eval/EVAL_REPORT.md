@@ -13,8 +13,8 @@ the project is fully evaluated.
 | Deprecated API scanner fixtures | Complete baseline | 29 / 30 fixtures passed |
 | Rules extraction fixtures | Complete single-run baseline | 16 / 16 fixtures passed |
 | Scoring behavior checks | Complete baseline | 15 / 15 checks passed |
-| Controlled migration cases | Pending | Not yet implemented |
-| Reliability scenarios | Pending | Not yet implemented |
+| Controlled migration cases | Partial baseline | 2 / 2 cases passed |
+| Reliability scenarios | Partial baseline | 2 / 2 scenarios passed |
 
 ## Deprecated API Scanner
 
@@ -42,7 +42,7 @@ Known failure:
 
 | Fixture | Issue |
 |---|---|
-| `wildcard_import_usage` | Scanner does not currently resolve deprecated symbols introduced through wildcard imports. |
+| `wildcard_import_usage` | Scanner does not resolve deprecated symbols introduced only through wildcard imports, such as `from flask import *`. This is documented as a current limitation because wildcard imports obscure symbol provenance and are discouraged in production Python code. |
 
 ## Rules Extraction
 
@@ -103,19 +103,75 @@ Result:
 The scoring checks cover monotonicity, dominance, determinism, and trust
 policies for incomplete or failed evidence collection.
 
+## Controlled Migration Cases
+
+Command:
+
+```bash
+vpilot/bin/python -m eval.evaluate_migrations \
+  eval/fixtures/migration_cases \
+  --output eval/migration_report.json
+```
+
+Result:
+
+| Metric | Value |
+|---|---:|
+| Cases | 2 |
+| Passed cases | 2 |
+| Issues detected | 2 |
+| Correct file/line results | 2 |
+| Useful recommendations | 2 |
+
+Case details:
+
+| Case | Issue Detected | Correct File/Line | Useful Recommendation |
+|---|---:|---:|---:|
+| `flask_removed_escape` | Yes | Yes | Yes |
+| `requests_vendored_urllib3` | Yes | Yes | Yes |
+
+Each case runs release notes through rules extraction, scans a small fixture
+project, and checks that the migration planner recommends the expected
+replacement.
+
+## Reliability Scenarios
+
+Command:
+
+```bash
+vpilot/bin/python -m eval.evaluate_reliability \
+  --output eval/reliability_report.json
+```
+
+Result:
+
+| Metric | Value |
+|---|---:|
+| Scenarios | 2 |
+| Passed scenarios | 2 |
+| Misleading successful migration results | 0 |
+
+Covered scenarios:
+
+| Scenario | Report Generated | Marked Successful | Reliability Check |
+|---|---:|---:|---:|
+| Rules extractor unavailable | Yes | No | Passed |
+| Rules extractor malformed JSON | Yes | No | Passed |
+
+These scenarios verify that rules-extraction failures still produce evaluable
+output, but do not get reported as successful controlled migrations.
+
 ## Pending Evaluations
 
 The following work is still required before calling the evaluation complete:
 
 1. Run rules extraction with multiple live attempts per fixture and record
    consistency.
-2. Decide whether to fix or explicitly document wildcard-import scanner
-   behavior.
-3. Build controlled migration cases that connect release notes, extracted
-   rules, source-code findings, recommendations, and post-migration tests.
-4. Implement reliability scenarios for GitHub, dependency parsing, OSV, clone,
-   LLM, and critic failures.
-5. Run real-repository smoke tests and record completion status, risk level,
+2. Add additional controlled migration cases and include post-migration test
+   execution where practical.
+3. Expand reliability scenarios for GitHub, dependency parsing, OSV, clone,
+   report LLM, and critic failures.
+4. Run real-repository smoke tests and record completion status, risk level,
    data completeness, findings, recommendations, and runtime.
 
 ## Current Limitations
@@ -124,5 +180,9 @@ The following work is still required before calling the evaluation complete:
   consistency is not yet measured.
 - Scanner accuracy is measured with manually verified rules, which isolates the
   scanner but does not by itself prove end-to-end migration quality.
-- The deprecated API scanner does not currently handle wildcard imports.
-- Controlled migration and reliability evaluations are still pending.
+- The deprecated API scanner does not currently handle wildcard imports. This
+  can miss usages where the deprecated symbol is introduced by `from package
+  import *` and then called by bare name.
+- Controlled migration coverage currently has two cases.
+- Reliability coverage currently includes rules-extraction failure handling
+  only; broader pipeline and agent failure scenarios are still pending.

@@ -1,0 +1,4 @@
+{
+  "package": "requests",
+  "case": "requests_vendored_urllib3"
+}

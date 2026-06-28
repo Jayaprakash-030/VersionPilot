@@ -215,4 +215,5 @@ All LLM nodes have deterministic fallbacks — agent mode degrades gracefully wh
 - `dependency_parser` only handles `requirements.txt` and `pyproject.toml`. Repos using `setup.py`/`setup.cfg` will have 0 dependencies parsed.
 - Release notes are fetched for the **latest PyPI version**, not the version pinned in requirements. Deprecation findings may include symbols not relevant until the user actually upgrades.
 - Auto-clone uses `--depth=1` (sufficient for AST scanning, no full git history).
+- Deprecated API scanning does not resolve symbols introduced only through wildcard imports such as `from package import *`.
 - npm / non-Python ecosystems not yet supported.

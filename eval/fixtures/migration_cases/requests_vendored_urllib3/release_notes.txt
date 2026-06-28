@@ -1,0 +1,4 @@
+Requests no longer supports importing urllib3 through the vendored package path.
+
+The requests.packages.urllib3 import path has been removed. Applications should
+import urllib3 directly instead.

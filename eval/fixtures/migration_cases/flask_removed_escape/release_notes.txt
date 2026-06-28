@@ -1,0 +1,4 @@
+Flask 2.3 removes previously deprecated top-level symbols.
+
+The flask.escape helper has been removed. Applications should import
+markupsafe.escape directly instead.

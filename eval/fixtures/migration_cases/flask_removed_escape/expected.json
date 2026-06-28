@@ -1,0 +1,19 @@
+{
+  "findings": [
+    {
+      "symbol": "flask.escape",
+      "file_path": "app.py",
+      "line": 5,
+      "replacement": "markupsafe.escape",
+      "severity": "high"
+    }
+  ],
+  "plan_steps": [
+    {
+      "type": "deprecated_api_replacement",
+      "symbol": "flask.escape",
+      "action": "markupsafe.escape",
+      "severity": "high"
+    }
+  ]
+}

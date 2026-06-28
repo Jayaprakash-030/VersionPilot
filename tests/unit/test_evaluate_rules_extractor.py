@@ -156,8 +156,38 @@ def test_evaluate_fixture_runs_repeats_one_fixture(tmp_path):
     assert result["run_count"] == 2
     assert result["passed_fixture_count"] == 1
     assert result["passed_run_count"] == 2
+    assert result["consistent_fixture_count"] == 1
+    assert result["consistency_rate"] == 1.0
+    assert result["inconsistent_fixtures"] == []
     assert result["metrics"]["f1"] == 1.0
     assert [run["run_index"] for run in result["fixtures"]] == [1, 2]
+
+
+def test_evaluate_fixture_runs_reports_inconsistent_outputs(tmp_path):
+    expected = [
+        {
+            "symbol": "examplelib.LegacySession",
+            "replacement": "examplelib.Session",
+            "severity": "medium",
+        }
+    ]
+    changed = [
+        {
+            "symbol": "examplelib.LegacySession",
+            "replacement": "examplelib.Session",
+            "severity": "high",
+        }
+    ]
+    fixture = _write_fixture(tmp_path, "deprecated_class", expected)
+    llm = MagicMock()
+    llm.call.side_effect = [json.dumps(expected), json.dumps(changed)]
+    extractor = RulesExtractor(llm_client=llm)
+
+    result = evaluate_fixture_runs(fixture, extractor=extractor, runs_per_fixture=2)
+
+    assert result["consistent_fixture_count"] == 0
+    assert result["consistency_rate"] == 0.0
+    assert result["inconsistent_fixtures"] == ["deprecated_class"]
 
 
 def test_evaluate_suite_repeats_each_fixture(tmp_path):
@@ -186,6 +216,8 @@ def test_evaluate_suite_repeats_each_fixture(tmp_path):
     assert result["run_count"] == 4
     assert result["passed_fixture_count"] == 2
     assert result["passed_run_count"] == 4
+    assert result["consistent_fixture_count"] == 2
+    assert result["consistency_rate"] == 1.0
 
 
 def test_evaluate_suite_reuses_one_default_extractor(tmp_path):

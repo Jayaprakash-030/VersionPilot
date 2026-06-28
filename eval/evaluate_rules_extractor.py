@@ -96,6 +96,19 @@ def _is_valid_rule_list(raw_rules: object) -> bool:
     )
 
 
+def _rules_signature(rules: Iterable[dict[str, str]]) -> tuple[tuple[str, str, str], ...]:
+    return tuple(
+        sorted(
+            (
+                rule["symbol"],
+                rule.get("replacement", ""),
+                rule.get("severity", ""),
+            )
+            for rule in rules
+        )
+    )
+
+
 def evaluate_fixture(
     fixture_path: str | Path,
     extractor: RulesExtractor | None = None,
@@ -176,6 +189,21 @@ def _aggregate_results(
             if result["fixture"] == fixture_name
         )
     ]
+    consistency_by_fixture = {}
+    for fixture_name in fixture_names:
+        fixture_results = [
+            result for result in results if result["fixture"] == fixture_name
+        ]
+        signatures = {
+            _rules_signature(result["actual"])  # type: ignore[arg-type]
+            for result in fixture_results
+        }
+        consistency_by_fixture[fixture_name] = len(signatures) <= 1
+    inconsistent_fixtures = [
+        fixture_name
+        for fixture_name, is_consistent in consistency_by_fixture.items()
+        if not is_consistent
+    ]
 
     return {
         "fixture_count": len(fixture_names),
@@ -184,6 +212,13 @@ def _aggregate_results(
         "passed_fixture_count": passed_fixture_count,
         "passed_run_count": sum(bool(result["passed"]) for result in results),
         "failed_fixtures": failed_fixtures,
+        "consistent_fixture_count": sum(consistency_by_fixture.values()),
+        "consistency_rate": (
+            sum(consistency_by_fixture.values()) / len(fixture_names)
+            if fixture_names
+            else 0.0
+        ),
+        "inconsistent_fixtures": inconsistent_fixtures,
         "valid_schema_rate": (
             sum(bool(result["valid_schema"]) for result in results) / len(results)
             if results

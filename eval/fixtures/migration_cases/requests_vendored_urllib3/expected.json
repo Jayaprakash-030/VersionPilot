@@ -1,0 +1,26 @@
+{
+  "findings": [
+    {
+      "symbol": "requests.packages.urllib3",
+      "file_path": "client.py",
+      "line": 1,
+      "replacement": "urllib3",
+      "severity": "high"
+    },
+    {
+      "symbol": "requests.packages.urllib3",
+      "file_path": "client.py",
+      "line": 5,
+      "replacement": "urllib3",
+      "severity": "high"
+    }
+  ],
+  "plan_steps": [
+    {
+      "type": "deprecated_api_replacement",
+      "symbol": "requests.packages.urllib3",
+      "action": "urllib3",
+      "severity": "high"
+    }
+  ]
+}
