@@ -129,22 +129,21 @@ Result:
 | Issues detected | 3 |
 | Correct file/line results | 3 |
 | Useful recommendations | 3 |
-| Cases with post-migration tests | 1 |
-| Post-migration tests passed | 1 |
+| Cases with post-migration tests | 3 |
+| Post-migration tests passed | 3 |
 
 Case details:
 
 | Case | Issue Detected | Correct File/Line | Useful Recommendation | Tests Pass After Fix |
 |---|---:|---:|---:|---:|
 | `flask_removed_escape` | Yes | Yes | Yes | Yes |
-| `requests_vendored_urllib3` | Yes | Yes | Yes | Not measured |
-| `numpy_deprecated_bool_alias` | Yes | Yes | Yes | Not measured |
+| `requests_vendored_urllib3` | Yes | Yes | Yes | Yes |
+| `numpy_deprecated_bool_alias` | Yes | Yes | Yes | Yes |
 
 Each case runs release notes through rules extraction, scans a small fixture
 project, and checks that the migration planner recommends the expected
-replacement. The Flask case also includes a migrated fixture project with a
-pytest check proving the recommended replacement preserves the expected HTML
-escaping behavior.
+replacement. Each case also includes a migrated fixture project with a pytest
+check proving the recommended replacement still supports the expected behavior.
 
 ## Reliability Scenarios
 
@@ -245,10 +244,7 @@ Migration analysis notes:
 
 ## Pending Evaluations
 
-The following work is still required before calling the evaluation complete:
-
-1. Add post-migration test execution to more controlled migration cases where
-   practical.
+No required evaluation item is currently pending for the Phase 4 baseline.
 
 ## Current Limitations
 
