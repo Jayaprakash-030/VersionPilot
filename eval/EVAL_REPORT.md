@@ -3,8 +3,7 @@
 ## Status
 
 This is the current evaluation snapshot for VersionPilot. It records completed
-baseline results and keeps unfinished evaluations explicit rather than implying
-the project is fully evaluated.
+portfolio baseline results, measured limitations, and smoke-run evidence.
 
 ## Summary
 
@@ -13,8 +12,8 @@ the project is fully evaluated.
 | Deprecated API scanner fixtures | Complete baseline | 29 / 30 fixtures passed |
 | Rules extraction fixtures | Complete multi-run baseline | 48 / 48 runs passed |
 | Scoring behavior checks | Complete baseline | 15 / 15 checks passed |
-| Controlled migration cases | Partial baseline | 3 / 3 cases passed |
-| Reliability scenarios | Partial baseline | 10 / 10 scenarios passed |
+| Controlled migration cases | Complete portfolio baseline | 3 / 3 cases passed |
+| Reliability scenarios | Complete portfolio baseline | 10 / 10 scenarios passed |
 | Basic real-repository smoke runs | Complete smoke baseline | 5 / 5 runs completed |
 | Agent-mode smoke run | Complete smoke baseline | 1 / 1 run completed |
 

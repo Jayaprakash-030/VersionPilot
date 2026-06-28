@@ -96,11 +96,14 @@ eval/
   run_eval.py             current batch evaluation runner
   EVAL_REPORT.md          published evaluation results
 
+docs/
+  EVALUATION_PLAN.md      evaluation methodology
+
 pipelines/
   promote_model.py         promotion gate for baseline approval
 
 tests/
-  unit/                 26 test files
+  unit/                 unit tests
   integration/
 ```
 
@@ -156,7 +159,8 @@ python -m app.main https://github.com/psf/requests --mode agent --repo-path /pat
 python -m eval.run_eval --repos-file data/benchmark_repos.txt --output eval/eval_report.json
 ```
 
-The focused portfolio evaluation plan is documented in [Eval.md](Eval.md). It measures:
+The focused portfolio evaluation plan is documented in
+[docs/EVALUATION_PLAN.md](docs/EVALUATION_PLAN.md). It measures:
 
 - Deprecated API scanner precision, recall, F1, and source-line accuracy
 - Rules extraction quality across repeated live LLM runs

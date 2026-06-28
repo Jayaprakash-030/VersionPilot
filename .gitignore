@@ -1,5 +1,6 @@
 .env
 .vscode/
+AGENTS.md
 Plan.md
 abc.txt
 artifacts/
