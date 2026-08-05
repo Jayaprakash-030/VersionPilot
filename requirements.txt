@@ -11,3 +11,7 @@ python-dotenv>=1.0.0
 
 # Dev / testing
 pytest>=8.0.0
+
+# Eval fixture dependencies (post-migration tests in eval/fixtures/migration_cases)
+markupsafe>=2.0
+urllib3>=2.0

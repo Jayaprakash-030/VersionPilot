@@ -18,6 +18,49 @@ Most tools tell you *that* you are outdated. VersionPilot tells you:
 
 ---
 
+## Sample Output
+
+Real agent-mode run against `psf/requests` (trimmed):
+
+```bash
+python -m app.main https://github.com/psf/requests --mode agent --json
+```
+
+```json
+{
+  "summary": "Overall dependency health is rated 70.09 with a Medium risk level. Migration analysis indicates potential breaking changes related to urllib3 dropping support for end-of-life Python 3.9 and PyPy3.10, alongside one medium-severity deprecation notice.",
+  "health_score": 70.09,
+  "risk_level": "Medium",
+  "key_findings": [
+    {
+      "finding": "urllib3 breaking change: removed support for end-of-life Python 3.9",
+      "evidence": "breakdown[packages]=urllib3 finding_count=3; findings include \"Removed support for end-of-life Python 3.9.\" severity=\"high\" (https://github.com/urllib3/urllib3/issues/3720)",
+      "severity": "high"
+    }
+  ],
+  "migration_recommendations": [
+    {
+      "action": "Perform a breaking-change review for urllib3: removed support for end-of-life Python 3.9 (https://github.com/urllib3/urllib3/issues/3720).",
+      "priority": "high",
+      "reason": "Migration step explicitly lists this as severity \"high\" and the dependency has a \"breaking_change\" finding for Python 3.9."
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 0.95,
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "critic": { "passed": true, "retry_count": 0 }
+}
+```
+
+Every finding carries its evidence and source link — the report node never
+asserts anything that is not backed by a collected signal.
+
+---
+
 ## Architecture
 
 ### Two modes
