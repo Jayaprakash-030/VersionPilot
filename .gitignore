@@ -8,7 +8,8 @@ artifacts/
 config/*
 !config/scoring_v1.yaml
 !config/model_registry.json
-data/
+data/*
+!data/deprecation_rules.json
 eval/*.json
 .DS_Store
 vpilot/

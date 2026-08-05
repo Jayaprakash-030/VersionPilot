@@ -1,0 +1,20 @@
+{
+  "requests": {
+    "deprecated_symbols": {
+      "requests.packages.urllib3": {
+        "replacement": "import urllib3 directly",
+        "severity": "medium",
+        "note": "requests.packages.urllib3 is an internal vendored path"
+      }
+    }
+  },
+  "flask": {
+    "deprecated_symbols": {
+      "flask.ext": {
+        "replacement": "Use extension packages directly (for example flask_sqlalchemy)",
+        "severity": "high",
+        "note": "flask.ext style imports were removed in modern Flask"
+      }
+    }
+  }
+}
