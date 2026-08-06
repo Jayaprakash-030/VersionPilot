@@ -132,7 +132,6 @@ config/
   model_registry.json   approved baseline registry
 
 data/
-  deprecation_rules.json  static fallback deprecation rules
   benchmark_repos.txt     legacy batch-run repository list
 
 eval/

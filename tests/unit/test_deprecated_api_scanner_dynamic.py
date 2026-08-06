@@ -24,7 +24,7 @@ SOURCE_WITHOUT_DEPRECATED = "import requests\n"
 
 def test_dynamic_rules_skips_file_loading():
     # No rules file exists at this path — should not raise
-    scanner = DeprecatedAPIScanner(rules_path="nonexistent.json", rules=DYNAMIC_RULES)
+    scanner = DeprecatedAPIScanner(rules=DYNAMIC_RULES)
     assert scanner.rules == DYNAMIC_RULES
 
 
@@ -122,10 +122,7 @@ def test_local_object_named_like_package_does_not_produce_finding():
     assert findings == []
 
 
-# ---------------------------------------------------------------------------
-# Backward compatibility — file-based rules still work
-# ---------------------------------------------------------------------------
-
-def test_file_based_rules_still_work():
-    scanner = DeprecatedAPIScanner(rules_path="data/deprecation_rules.json")
-    assert isinstance(scanner.rules, dict)
+def test_empty_rules_produce_no_findings():
+    scanner = DeprecatedAPIScanner(rules={})
+    findings = scanner.scan_python_source("from flask.ext import sqlalchemy\n", file_path="sample.py")
+    assert findings == []

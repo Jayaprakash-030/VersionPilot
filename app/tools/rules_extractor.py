@@ -65,7 +65,7 @@ class RulesExtractor:
             return []
 
     def build_rules_dict(self, package_name: str, notes_text: str) -> dict:
-        """Return a rules dict in the deprecation_rules.json schema for one package."""
+        """Return a rules dict in the scanner rules schema for one package."""
         rules = self.extract_rules(package_name, notes_text)
         if not rules:
             return {}

@@ -35,7 +35,8 @@ def evidence_node(state: VersionPilotState) -> dict:
         if status == "skipped":
             return
         migration_checks_total += 1
-        if status == "ok":
+        # Non-error outcomes (including empty/up-to-date notes) count as complete.
+        if status in {"ok", "up_to_date", "no_notes_available"}:
             migration_checks_complete += 1
         elif step not in migration_failed_steps:
             migration_failed_steps.append(step)
@@ -121,7 +122,16 @@ def evidence_node(state: VersionPilotState) -> dict:
             combined_rules.update(pkg_rules)
 
         # Deterministic changelog analysis for breaking changes
-        changelog_result = registry.analyze_changelog(notes_text, name)
+        changelog_result = registry.analyze_changelog(
+            notes_text,
+            name,
+            from_version=notes_result.get("from_version") or "unknown",
+            to_version=(
+                notes_result.get("to_version")
+                or notes_result.get("latest_version")
+                or "latest"
+            ),
+        )
         provenance.append(
             {
                 "source": f"changelog:{name}",
@@ -171,10 +181,11 @@ def evidence_node(state: VersionPilotState) -> dict:
 
     if repo_path and "deprecated_api_scan" not in skip_steps:
         try:
-            # Use LLM-extracted rules if available, else fall back to static rules file
+            # Use LLM-extracted rules when present; empty dict means "no rules
+            # found" — do NOT fall back to the static stub JSON.
             scan_result = registry.scan_deprecated_apis(
                 repo_path,
-                rules=combined_rules if combined_rules else None,
+                rules=combined_rules,
             )
             provenance.append(
                 {

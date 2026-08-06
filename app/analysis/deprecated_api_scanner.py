@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
@@ -30,27 +29,9 @@ class DeprecatedAPIScannerError(Exception):
 
 class DeprecatedAPIScanner:
     """AST scanner that finds deprecated API usages from configured rules."""
-    def __init__(
-        self,
-        rules_path: str = "data/deprecation_rules.json",
-        rules: Dict[str, Any] | None = None,
-    ) -> None:
-        """Initialize the scanner from a rules dict or rules JSON file path."""
-        if rules is not None:
-            self.rules = rules
-        else:
-            self.rules_path = Path(rules_path)
-            self.rules = self._load_rules()
-
-    def _load_rules(self) -> Dict[str, Any]:
-        """Load and parse deprecation rules from the configured JSON path."""
-        if not self.rules_path.exists():
-            raise DeprecatedAPIScannerError(f"Rules file not found: {self.rules_path}")
-
-        try:
-            return json.loads(self.rules_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise DeprecatedAPIScannerError("Invalid deprecation rules JSON") from exc
+    def __init__(self, rules: Dict[str, Any] | None = None) -> None:
+        """Initialize the scanner from a rules dict (empty dict = no symbols)."""
+        self.rules = rules if rules is not None else {}
 
     def scan_repository_path(self, repo_path: str) -> List[DeprecatedAPIFinding]:
         """Scan all Python files under a repository path for deprecated APIs."""

@@ -140,7 +140,7 @@ def run_pipeline(
         )
 
     try:
-        breakpoint()
+        # breakpoint()
         dependencies = fetch_dependencies(repo_url)
         try:
             outdated_dependencies = count_outdated_dependencies(

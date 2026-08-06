@@ -49,13 +49,14 @@ def _deprecated_api_rules_source(state: VersionPilotState) -> str:
     return "unknown"
 
 
-def _static_fallback_notice(state: VersionPilotState) -> str:
-    """Optional notice when the scan used limited static fallback rules."""
-    if _deprecated_api_rules_source(state) != "static_fallback":
+def _rules_source_notice(state: VersionPilotState) -> str:
+    """Optional notice when no dynamic deprecation rules were extracted."""
+    if _deprecated_api_rules_source(state) != "no_rules_extracted":
         return ""
-    if state.get("deprecated_findings"):
-        return ""
-    return " No deprecated APIs were found using the limited static fallback rules."
+    return (
+        " No deprecated-API rules were extracted from release notes;"
+        " deprecated API scan found nothing from dynamic analysis."
+    )
 
 
 def _template_report(state: VersionPilotState, effective_risk: str | None = None) -> dict:
@@ -88,7 +89,7 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
             f"{len(deprecated_findings)} deprecated API finding(s), "
             f"{len(steps)} migration step(s). "
             f"Data completeness: {state.get('data_completeness', 0.0):.0%}."
-            f"{_static_fallback_notice(state)}"
+            f"{_rules_source_notice(state)}"
         ),
         "health_score": state.get("health_score", 0.0),
         "risk_level": published_risk,
@@ -175,7 +176,7 @@ def report_node(state: VersionPilotState) -> dict:
     final_report["risk_level"] = effective_risk
     if not critic_passed:
         final_report["summary"] = _template_report(state, effective_risk)["summary"]
-    elif notice := _static_fallback_notice(state):
+    elif notice := _rules_source_notice(state):
         if notice.strip() not in final_report["summary"]:
             final_report["summary"] += notice
 

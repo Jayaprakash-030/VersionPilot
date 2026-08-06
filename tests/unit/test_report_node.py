@@ -98,22 +98,22 @@ class TestTemplateReport:
         assert report["key_findings"] == []
         assert report["migration_recommendations"] == []
 
-    def test_static_fallback_with_no_findings_is_described_as_limited(self):
+    def test_no_rules_extracted_is_described_in_summary(self):
         state = _state(
             deprecated_findings=[],
             provenance=[
                 {
                     "source": "deprecated_api_scan",
                     "status": "ok",
-                    "rules_source": "static_fallback",
+                    "rules_source": "no_rules_extracted",
                 }
             ],
         )
 
         report = _template_report(state)
 
-        assert "limited static fallback rules" in report["summary"]
-        assert report["data_quality"]["deprecated_api_rules_source"] == "static_fallback"
+        assert "No deprecated-API rules were extracted" in report["summary"]
+        assert report["data_quality"]["deprecated_api_rules_source"] == "no_rules_extracted"
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ class TestReportNodeFallback:
         assert result["final_report"]["critic"]["passed"] is True
 
     @patch("app.agents.report_node.LLMClient.is_available", return_value=False)
-    def test_dynamic_rules_do_not_add_static_fallback_notice(self, _mock):
+    def test_dynamic_rules_do_not_add_no_rules_notice(self, _mock):
         state = _state(
             deprecated_findings=[],
             provenance=[
@@ -287,7 +287,7 @@ class TestReportNodeLLM:
 
     @patch("app.agents.report_node.LLMClient.is_available", return_value=True)
     @patch("app.agents.report_node.LLMClient")
-    def test_static_fallback_notice_is_added_to_llm_report(self, MockLLM, _mock_avail):
+    def test_no_rules_extracted_notice_is_added_to_llm_report(self, MockLLM, _mock_avail):
         mock_instance = MagicMock()
         mock_instance.call.return_value = json.dumps(_canned_report())
         MockLLM.return_value = mock_instance
@@ -298,17 +298,17 @@ class TestReportNodeLLM:
                 {
                     "source": "deprecated_api_scan",
                     "status": "ok",
-                    "rules_source": "static_fallback",
+                    "rules_source": "no_rules_extracted",
                 }
             ],
         )
 
         result = report_node(state)
 
-        assert "limited static fallback rules" in result["final_report"]["summary"]
+        assert "No deprecated-API rules were extracted" in result["final_report"]["summary"]
         assert (
             result["final_report"]["data_quality"]["deprecated_api_rules_source"]
-            == "static_fallback"
+            == "no_rules_extracted"
         )
 
     @patch("app.agents.report_node.LLMClient.is_available", return_value=True)

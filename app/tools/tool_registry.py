@@ -114,16 +114,16 @@ class ToolRegistry:
     def scan_deprecated_apis(
         self,
         repo_path: str,
-        rules_path: str = "data/deprecation_rules.json",
         rules: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Scan for deprecated API usage in a local repo clone.
 
-        If ``rules`` is provided it takes precedence over ``rules_path``.
+        ``rules`` should be LLM-extracted (or ``{}`` when none were found).
         """
-        rules_source = "dynamic" if rules is not None else "static_fallback"
+        effective_rules = rules if rules is not None else {}
+        rules_source = "dynamic" if effective_rules else "no_rules_extracted"
         try:
-            scanner = DeprecatedAPIScanner(rules_path=rules_path, rules=rules)
+            scanner = DeprecatedAPIScanner(rules=effective_rules)
             findings = scanner.scan_repository_path(repo_path)
             return {
                 "status": "ok",

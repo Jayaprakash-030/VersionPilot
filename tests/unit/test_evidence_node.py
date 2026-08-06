@@ -288,9 +288,9 @@ def test_llm_rules_passed_to_scan_deprecated_apis():
     assert scan_provenance["rules_source"] == "dynamic"
 
 
-def test_no_llm_rules_falls_back_to_static_rules():
-    """When RulesExtractor returns no rules, scan_deprecated_apis is called with rules=None."""
-    static_scan_result = {**_SCAN_OK, "rules_source": "static_fallback"}
+def test_no_llm_rules_does_not_use_static_stub():
+    """When no rules are extracted, scan with empty rules — not the stub JSON."""
+    empty_scan_result = {**_SCAN_OK, "rules_source": "no_rules_extracted", "findings": []}
 
     with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
          patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
@@ -298,7 +298,7 @@ def test_no_llm_rules_falls_back_to_static_rules():
         registry.run_v1_pipeline.return_value = _PIPELINE_OK
         registry.fetch_dependency_names.return_value = _DEP_NAMES_OK
         registry.fetch_dependency_release_notes.return_value = _NOTES_EMPTY
-        registry.scan_deprecated_apis.return_value = static_scan_result
+        registry.scan_deprecated_apis.return_value = empty_scan_result
         registry.generate_migration_plan.return_value = _MIGRATION_OK
 
         MockExtractor.return_value.build_rules_dict.return_value = {}
@@ -306,12 +306,13 @@ def test_no_llm_rules_falls_back_to_static_rules():
         result = evidence_node(_base_state(repo_path="/tmp/repo"))
 
     _, kwargs = registry.scan_deprecated_apis.call_args
-    assert kwargs.get("rules") is None
+    assert kwargs.get("rules") == {}
     scan_provenance = next(
         entry for entry in result["provenance"]
         if entry["source"] == "deprecated_api_scan"
     )
-    assert scan_provenance["rules_source"] == "static_fallback"
+    assert scan_provenance["rules_source"] == "no_rules_extracted"
+    assert result["deprecated_findings"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -357,3 +358,43 @@ def test_agent_trace_updated():
     evidence_entries = [t for t in result["agent_trace"] if t.get("node") == "evidence"]
     assert len(evidence_entries) == 1
     assert evidence_entries[0]["status"] == "complete"
+
+
+def test_up_to_date_and_no_notes_do_not_count_as_migration_failures():
+    with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
+         patch("app.agents.evidence_node.RulesExtractor"):
+        registry = MockRegistry.return_value
+        registry.run_v1_pipeline.return_value = _PIPELINE_OK
+        registry.fetch_dependency_names.return_value = {
+            "status": "ok",
+            "dependencies": [
+                {"name": "requests", "version": "2.32.0"},
+                {"name": "flask", "version": "3.0.0"},
+            ],
+        }
+
+        def _notes(name, version=None):
+            if name == "requests":
+                return {
+                    "status": "up_to_date",
+                    "notes_text": "",
+                    "from_version": version,
+                    "to_version": version,
+                }
+            return {
+                "status": "no_notes_available",
+                "notes_text": "",
+                "from_version": version,
+                "to_version": "1.0.0",
+            }
+
+        registry.fetch_dependency_release_notes.side_effect = _notes
+        registry.generate_migration_plan.return_value = _MIGRATION_OK
+
+        result = evidence_node(_base_state(
+            agent_plan={"strategy": "lightweight", "skip_steps": ["deprecated_api_scan"]},
+        ))
+
+    assert "release_notes:requests" not in result["migration_analysis_failed_steps"]
+    assert "release_notes:flask" not in result["migration_analysis_failed_steps"]
+    assert result["migration_analysis_completeness"] == 1.0
