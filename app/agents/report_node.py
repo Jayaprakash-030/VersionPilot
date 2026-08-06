@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.agents.state import VersionPilotState
-from app.agents.llm_client import LLMClient
+from app.agents.llm_client import LLMClient, merge_llm_usage
 
 _SYSTEM_PROMPT = """\
 You are a dependency health report writer. Generate a structured report based ONLY on
@@ -106,6 +106,7 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
 def report_node(state: VersionPilotState) -> dict:
     """LLM node: synthesizes grounded final report. Falls back to template when LLM unavailable."""
     trace = list(state.get("agent_trace", []))
+    telemetry = dict(state.get("telemetry") or {})
     final_report = None
     critic_passed = state.get("critic_passed", True)
     effective_risk = state.get("risk_level", "unknown") if critic_passed else "Unverified"
@@ -132,6 +133,7 @@ def report_node(state: VersionPilotState) -> dict:
                 f"critic_feedback: {state.get('critic_feedback', '')}"
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
+            telemetry = merge_llm_usage(telemetry, llm)
             parsed = json.loads(raw)
             if not isinstance(parsed, dict):
                 raise ValueError(f"LLM returned non-object JSON: {type(parsed).__name__}")
@@ -175,4 +177,8 @@ def report_node(state: VersionPilotState) -> dict:
         if notice.strip() not in final_report["summary"]:
             final_report["summary"] += notice
 
-    return {"final_report": final_report, "agent_trace": trace}
+    return {
+        "final_report": final_report,
+        "agent_trace": trace,
+        "telemetry": telemetry,
+    }

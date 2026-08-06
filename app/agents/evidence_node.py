@@ -4,6 +4,7 @@ import shutil
 from datetime import datetime, timezone
 
 from app.agents.state import VersionPilotState
+from app.agents.llm_client import merge_llm_usage
 from app.tools.rules_extractor import RulesExtractor
 from app.tools.tool_registry import ToolRegistry
 
@@ -23,6 +24,7 @@ def evidence_node(state: VersionPilotState) -> dict:
     migration_checks_total = 0
     migration_checks_complete = 0
     trace: list[dict] = list(state.get("agent_trace", []))
+    telemetry = dict(state.get("telemetry") or {})
 
     def record_migration_check(step: str, status: str) -> None:
         nonlocal migration_checks_total, migration_checks_complete
@@ -213,6 +215,10 @@ def evidence_node(state: VersionPilotState) -> dict:
         "migration_analysis_failed_steps": list(migration_failed_steps),
     })
 
+    # One shared RulesExtractor client may make many calls — merge its totals once.
+    if extractor.llm is not None:
+        telemetry = merge_llm_usage(telemetry, extractor.llm)
+
     return {
         "repo_metrics": pipeline_result.get("repo_metrics", {}),
         "dependency_metrics": pipeline_result.get("dependency_metrics", {}),
@@ -225,4 +231,5 @@ def evidence_node(state: VersionPilotState) -> dict:
         "provenance": provenance,
         "failed_steps": failed_steps,
         "agent_trace": trace,
+        "telemetry": telemetry,
     }

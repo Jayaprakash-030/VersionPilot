@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.agents.state import VersionPilotState
-from app.agents.llm_client import LLMClient
+from app.agents.llm_client import LLMClient, merge_llm_usage
 
 _SYSTEM_PROMPT = """\
 You are a dependency health report critic. Your job is to validate that the analysis
@@ -34,20 +34,36 @@ def _deterministic_check(state: VersionPilotState) -> tuple[bool, str]:
     security_metrics = state.get("security_metrics", {})
 
     if failed_steps and health_score > 80:
-        return False, f"High score ({health_score:.1f}) with failed data collection steps: {failed_steps}"
+        return (
+            False,
+            f"High score ({health_score:.1f}) with failed data collection steps: {failed_steps}",
+        )
 
     dep_score = breakdown.get("dependency_score", None)
     dep_metrics = state.get("dependency_metrics", {})
     total_deps = dep_metrics.get("total_dependencies", None)
-    dependency_evidence_failed = "dependency_parser" in failed_steps or "v1_pipeline" in failed_steps
-    if dependency_evidence_failed and total_deps == 0 and dep_score is not None and dep_score >= 100:
-        return False, "Zero dependencies parsed but dependency_score is 100 — parser likely failed"
+    dependency_evidence_failed = (
+        "dependency_parser" in failed_steps or "v1_pipeline" in failed_steps
+    )
+    if (
+        dependency_evidence_failed
+        and total_deps == 0
+        and dep_score is not None
+        and dep_score >= 100
+    ):
+        return (
+            False,
+            "Zero dependencies parsed but dependency_score is 100 — parser likely failed",
+        )
 
     critical_vulns = security_metrics.get("critical", 0)
     high_vulns = security_metrics.get("high", 0)
     risk_level = str(state.get("risk_level", "")).lower()
     if (critical_vulns > 0 or high_vulns > 0) and risk_level in ("low", "healthy"):
-        return False, f"Low risk level '{risk_level}' despite {critical_vulns} critical and {high_vulns} high vulnerabilities"
+        return (
+            False,
+            f"Low risk level '{risk_level}' despite {critical_vulns} critical and {high_vulns} high vulnerabilities",
+        )
 
     return True, ""
 
@@ -55,6 +71,7 @@ def _deterministic_check(state: VersionPilotState) -> tuple[bool, str]:
 def critic_node(state: VersionPilotState) -> dict:
     """LLM node: validates analysis consistency. Falls back to deterministic checks."""
     trace = list(state.get("agent_trace", []))
+    telemetry = dict(state.get("telemetry") or {})
 
     passed = False
     feedback = ""
@@ -73,6 +90,7 @@ def critic_node(state: VersionPilotState) -> dict:
                 f"confidence_score: {state.get('confidence_score', 1.0)}"
             )
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=256)
+            telemetry = merge_llm_usage(telemetry, llm)
             result = json.loads(raw)
             if not isinstance(result, dict):
                 raise ValueError("critic response must be a JSON object")
@@ -87,13 +105,18 @@ def critic_node(state: VersionPilotState) -> dict:
             trace.append({"node": "critic", "status": "complete", "passed": passed})
         except Exception:
             passed, feedback = _deterministic_check(state)
-            trace.append({"node": "critic", "status": "fallback", "reason": "llm_error"})
+            trace.append(
+                {"node": "critic", "status": "fallback", "reason": "llm_error"}
+            )
     else:
         passed, feedback = _deterministic_check(state)
-        trace.append({"node": "critic", "status": "fallback", "reason": "llm_unavailable"})
+        trace.append(
+            {"node": "critic", "status": "fallback", "reason": "llm_unavailable"}
+        )
 
     return {
         "critic_passed": passed,
         "critic_feedback": feedback,
         "agent_trace": trace,
+        "telemetry": telemetry,
     }

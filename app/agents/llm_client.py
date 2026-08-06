@@ -16,6 +16,8 @@ class LLMClient:
     DEFAULT_MODEL = "gpt-5.4-nano"
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 1.0  # seconds
+    INPUT_USD_PER_1M = 0.20
+    OUTPUT_USD_PER_1M = 1.25
 
     def __init__(self, model: Optional[str] = None) -> None:
         self.model = model or os.environ.get("OPENAI_MODEL", self.DEFAULT_MODEL)
@@ -23,6 +25,7 @@ class LLMClient:
         self.total_input_tokens: int = 0
         self.total_output_tokens: int = 0
         self.last_model_used: str = ""
+        self.cost: float = 0.0
 
     def call(
         self,
@@ -42,6 +45,7 @@ class LLMClient:
                     max_output_tokens=max_tokens,
                 )
                 self._track_usage(response)
+                self._cost_per_run(self.total_input_tokens, self.total_output_tokens)
                 self.last_model_used = self.model
                 return self._extract_text(response)
             except Exception as exc:  # noqa: BLE001
@@ -49,7 +53,9 @@ class LLMClient:
                 if attempt < self.MAX_RETRIES - 1:
                     time.sleep(self.RETRY_BASE_DELAY * (2**attempt))
 
-        raise RuntimeError(f"OpenAI call failed after {self.MAX_RETRIES} attempts: {last_exc}")
+        raise RuntimeError(
+            f"OpenAI call failed after {self.MAX_RETRIES} attempts: {last_exc}"
+        )
 
     def _track_usage(self, response: object) -> None:
         usage = getattr(response, "usage", None)
@@ -57,6 +63,15 @@ class LLMClient:
             return
         self.total_input_tokens += int(getattr(usage, "input_tokens", 0) or 0)
         self.total_output_tokens += int(getattr(usage, "output_tokens", 0) or 0)
+
+    @classmethod
+    def estimate_cost_usd(cls, input_tokens: int, output_tokens: int) -> float:
+        return (input_tokens / 1_000_000 * cls.INPUT_USD_PER_1M) + (
+            output_tokens / 1_000_000 * cls.OUTPUT_USD_PER_1M
+        )
+
+    def _cost_per_run(self, input_tokens: int, output_tokens: int) -> None:
+        self.cost = self.estimate_cost_usd(input_tokens, output_tokens)
 
     def _extract_text(self, response: object) -> str:
         output_text = getattr(response, "output_text", None)
@@ -75,3 +90,21 @@ class LLMClient:
     def is_available(cls) -> bool:
         """Returns True if an OpenAI API key appears to be configured."""
         return bool(os.environ.get("OPENAI_API_KEY"))
+
+
+def merge_llm_usage(telemetry: dict, llm: LLMClient) -> dict:
+    """Add one client's cumulative usage into run telemetry and recompute cost.
+
+    Call once per LLMClient instance (after all of its calls). Recomputes
+    estimated_cost_usd from state token totals so multi-call clients are not
+    double-counted.
+    """
+    updated = dict(telemetry)
+    updated["input_tokens"] = int(updated.get("input_tokens", 0) or 0) + llm.total_input_tokens
+    updated["output_tokens"] = int(updated.get("output_tokens", 0) or 0) + llm.total_output_tokens
+    updated["model"] = llm.last_model_used or llm.model
+    updated["estimated_cost_usd"] = LLMClient.estimate_cost_usd(
+        updated["input_tokens"],
+        updated["output_tokens"],
+    )
+    return updated

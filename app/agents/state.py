@@ -40,6 +40,9 @@ class VersionPilotState(TypedDict):
     confidence_penalty: float
     failed_steps: list[str]
 
+    # telemetry
+    telemetry: dict
+
     # Output
     final_report: NotRequired[dict]
 
@@ -76,5 +79,13 @@ def create_initial_state(
         confidence_score=0.0,
         confidence_penalty=0.0,
         failed_steps=[],
+        telemetry={
+            "model": "",
+            "node_timings_ms": {},
+            "total_wall_ms": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "estimated_cost_usd": 0.0,
+        },
         final_report={},
     )

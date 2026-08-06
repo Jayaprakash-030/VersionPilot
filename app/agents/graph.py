@@ -1,3 +1,4 @@
+import time
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.critic_node import critic_node
@@ -13,6 +14,7 @@ from app.agents.state import VersionPilotState, create_initial_state
 # Conditional edge (1.4)
 # ---------------------------------------------------------------------------
 
+
 def should_retry_or_report(state: VersionPilotState) -> str:
     if state.get("critic_passed"):
         return "report"
@@ -21,28 +23,50 @@ def should_retry_or_report(state: VersionPilotState) -> str:
     return "recovery"
 
 
+def with_timing(node_name, function):
+    def wrapped(state):
+        t0 = time.perf_counter()
+        updates = function(state) or {}
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+        telemetry = dict(updates.get("telemetry") or state.get("telemetry") or {})
+        timings = dict(telemetry.get("node_timings_ms") or {})
+        # If a node can run twice (critic→recovery→scoring), accumulate
+        timings[node_name] = timings.get(node_name, 0.0) + elapsed_ms
+        telemetry["node_timings_ms"] = timings
+        updates["telemetry"] = telemetry
+        return updates
+
+    return wrapped
+
+
 # ---------------------------------------------------------------------------
 # Graph definition (1.4)
 # ---------------------------------------------------------------------------
 
+
 def build_graph() -> StateGraph:
     graph = StateGraph(VersionPilotState)
 
-    graph.add_node("planner", planner_node)
-    graph.add_node("evidence", evidence_node)
-    graph.add_node("scoring", scoring_node)
-    graph.add_node("critic", critic_node)
-    graph.add_node("recovery", recovery_node)
-    graph.add_node("report", report_node)
+    graph.add_node("planner", with_timing("planner", planner_node))
+    graph.add_node("evidence", with_timing("evidence", evidence_node))
+    graph.add_node("scoring", with_timing("scoring", scoring_node))
+    graph.add_node("critic", with_timing("critic", critic_node))
+    graph.add_node("recovery", with_timing("recovery", recovery_node))
+    graph.add_node("report", with_timing("report", report_node))
 
     graph.add_edge(START, "planner")
     graph.add_edge("planner", "evidence")
     graph.add_edge("evidence", "scoring")
     graph.add_edge("scoring", "critic")
-    graph.add_conditional_edges("critic", should_retry_or_report, {
-        "report": "report",
-        "recovery": "recovery",
-    })
+    graph.add_conditional_edges(
+        "critic",
+        should_retry_or_report,
+        {
+            "report": "report",
+            "recovery": "recovery",
+        },
+    )
     graph.add_edge("recovery", "scoring")
     graph.add_edge("report", END)
 
@@ -58,5 +82,14 @@ def run_graph(
     config_version: str = "config/scoring_v1.yaml",
     run_id: str = "",
 ) -> dict:
-    initial_state = create_initial_state(repo_url, repo_path, config_version, run_id=run_id)
-    return compiled_graph.invoke(initial_state)
+    initial_state = create_initial_state(
+        repo_url, repo_path, config_version, run_id=run_id
+    )
+
+    t0 = time.perf_counter()
+    final_state = compiled_graph.invoke(initial_state)
+    elapsed_ms = (time.perf_counter() - t0) * 1000.0
+    telemetry = dict(final_state.get("telemetry") or {})
+    telemetry["total_wall_ms"] = elapsed_ms
+    final_state["telemetry"] = telemetry
+    return final_state

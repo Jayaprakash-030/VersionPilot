@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.agents.state import VersionPilotState
-from app.agents.llm_client import LLMClient
+from app.agents.llm_client import LLMClient, merge_llm_usage
 
 _SYSTEM_PROMPT = """\
 You are a dependency analysis planner. Given a repository URL and an optional local path,
@@ -33,6 +33,7 @@ def planner_node(state: VersionPilotState) -> dict:
     trace = list(state.get("agent_trace", []))
     repo_url = state.get("repo_url", "")
     repo_path = state.get("repo_path", "")
+    telemetry = dict(state.get("telemetry", {}))
 
     agent_plan = None
 
@@ -41,6 +42,7 @@ def planner_node(state: VersionPilotState) -> dict:
             llm = LLMClient()
             user_prompt = f"Repository URL: {repo_url}\nLocal path: {repo_path or '(not provided)'}"
             raw = llm.call(_SYSTEM_PROMPT, user_prompt, max_tokens=256)
+            telemetry = merge_llm_usage(telemetry, llm)
             agent_plan = json.loads(raw)
         except Exception:
             agent_plan = None  # fall through to default
@@ -51,4 +53,4 @@ def planner_node(state: VersionPilotState) -> dict:
     else:
         trace.append({"node": "planner", "status": "complete", "plan": agent_plan})
 
-    return {"agent_plan": agent_plan, "agent_trace": trace}
+    return {"agent_plan": agent_plan, "agent_trace": trace, "telemetry": telemetry}
