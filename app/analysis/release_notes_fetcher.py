@@ -6,6 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
 from app.core.github_client import parse_repo_url
@@ -18,6 +19,53 @@ class ReleaseNotesFetcherError(Exception):
     """Raised when release notes or package metadata cannot be fetched."""
 
     pass
+
+
+def resolve_pin_lower_bound(version_spec: str | None) -> str | None:
+    """Return a concrete lower-bound version from an exact pin or range string.
+
+    Handles values produced by the dependency parser, which often strips the
+    first operator — e.g. ``urllib3>=1.26,<3`` is stored as ``1.26,<3``.
+    Bare clauses without an operator are treated as ``>=``.
+    """
+    if not version_spec or not str(version_spec).strip():
+        return None
+
+    raw = str(version_spec).strip()
+    try:
+        return str(Version(raw.lstrip("vV")))
+    except InvalidVersion:
+        pass
+
+    spec_set: SpecifierSet | None
+    try:
+        spec_set = SpecifierSet(raw)
+    except InvalidSpecifier:
+        parts: list[str] = []
+        for part in raw.split(","):
+            clause = part.strip()
+            if not clause:
+                continue
+            if clause[0] in "<>=!~":
+                parts.append(clause)
+            else:
+                parts.append(f">={clause}")
+        try:
+            spec_set = SpecifierSet(",".join(parts))
+        except InvalidSpecifier:
+            return None
+
+    lower_bounds: list[Version] = []
+    for spec in spec_set:
+        if spec.operator in (">=", ">", "==", "~=", "==="):
+            try:
+                lower_bounds.append(Version(spec.version))
+            except InvalidVersion:
+                continue
+
+    if not lower_bounds:
+        return None
+    return str(min(lower_bounds))
 
 
 def _github_headers() -> dict[str, str]:
@@ -209,10 +257,11 @@ def fetch_dependency_release_notes(
                 "package": package_name,
                 "status": "not_found",
                 "source": "none",
-                "from_version": version,
+                "from_version": resolve_pin_lower_bound(version),
                 "to_version": None,
                 "latest_version": None,
                 "notes_text": "",
+                "version_spec": version,
             }
         raise ReleaseNotesFetcherError(
             f"Failed to fetch package metadata for {package_name}: {exc}"
@@ -231,18 +280,20 @@ def fetch_dependency_release_notes(
     project_urls = info.get("project_urls")
     home_page = info.get("home_page")
     github_repo_url = _extract_github_repo_url(project_urls, home_page)
+    from_version = resolve_pin_lower_bound(version)
 
     base = {
         "package": package_name,
-        "from_version": version,
+        "from_version": from_version,
         "to_version": latest_version,
         "latest_version": latest_version,
         "upstream_repo_url": github_repo_url,
+        "version_spec": version,
     }
 
-    if version and latest_version:
+    if from_version and latest_version:
         try:
-            if Version(version) >= Version(latest_version):
+            if Version(from_version) >= Version(latest_version):
                 return {
                     **base,
                     "status": "up_to_date",
@@ -252,12 +303,12 @@ def fetch_dependency_release_notes(
         except InvalidVersion:
             pass
 
-    if github_repo_url and version and latest_version:
+    if github_repo_url and from_version and latest_version:
         try:
-            if Version(version) < Version(latest_version):
+            if Version(from_version) < Version(latest_version):
                 span_notes = fetch_release_notes_span(
                     github_repo_url,
-                    from_version=version,
+                    from_version=from_version,
                     to_version=latest_version,
                     timeout_seconds=timeout_seconds,
                 )
@@ -291,8 +342,9 @@ def fetch_dependency_release_notes(
             }
 
     fallback = _pypi_fallback_notes(info, latest_version, package_name)
-    fallback["from_version"] = version
+    fallback["from_version"] = from_version
     fallback["to_version"] = latest_version
+    fallback["version_spec"] = version
     if github_repo_url:
         fallback["upstream_repo_url"] = github_repo_url
     return fallback
