@@ -177,6 +177,8 @@ def report_node(state: VersionPilotState) -> dict:
         if notice.strip() not in final_report["summary"]:
             final_report["summary"] += notice
 
+    final_report["telemetry"] = telemetry
+
     return {
         "final_report": final_report,
         "agent_trace": trace,

@@ -7,6 +7,7 @@ import traceback
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from .core.pipeline import build_run_id, run_pipeline
@@ -15,7 +16,9 @@ from .agents.graph import run_graph
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Deterministic AI Health Inspector (Step 1 scaffold)")
+    parser = argparse.ArgumentParser(
+        description="Deterministic AI Health Inspector (Step 1 scaffold)"
+    )
     parser.add_argument("repo_url", help="GitHub repository URL")
     parser.add_argument(
         "--mode",
@@ -97,7 +100,9 @@ def main() -> None:
                 config_version=args.config,
                 run_id=run_id,
             )
-            payload = final_state.get("final_report", {})
+            payload = dict(final_state.get("final_report") or {})
+            if final_state.get("telemetry"):
+                payload["telemetry"] = final_state["telemetry"]
             health_score = payload.get("health_score")
             risk_level = payload.get("risk_level")
         except Exception as exc:
