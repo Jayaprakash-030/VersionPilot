@@ -15,6 +15,7 @@ from app.analysis.release_notes_fetcher import fetch_dependency_release_notes as
 
 
 def _now_iso() -> str:
+    """Return the current UTC time as an ISO-8601 timestamp string."""
     return datetime.now(timezone.utc).isoformat()
 
 

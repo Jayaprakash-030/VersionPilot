@@ -65,12 +65,14 @@ def evaluate_suite(fixtures_path: str | Path) -> dict[str, object]:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the deprecated API scanner evaluator."""
     parser = argparse.ArgumentParser(description="Evaluate deprecated API scanner fixtures")
     parser.add_argument("fixtures_path", help="Path to one fixture or a fixture root")
     return parser.parse_args()
 
 
 def main() -> None:
+    """Run scanner evaluation for a fixture or fixture suite and print JSON."""
     args = parse_args()
     path = Path(args.fixtures_path)
     result = (

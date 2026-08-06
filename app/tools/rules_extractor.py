@@ -32,6 +32,7 @@ class RulesExtractor:
     """Extracts deprecation rules from package release notes via LLM."""
 
     def __init__(self, llm_client: Optional[LLMClient] = None) -> None:
+        """Create an extractor with an optional or auto-detected LLM client."""
         self.last_extraction_status = "not_run"
         self.last_extraction_error = ""
         if llm_client is not None:

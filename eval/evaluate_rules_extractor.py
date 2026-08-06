@@ -12,10 +12,12 @@ RuleKey = str
 
 
 def _load_json(path: Path) -> Any:
+    """Load and parse a JSON file from disk."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _normalize_rule(rule: dict[str, Any]) -> dict[str, str]:
+    """Normalize a single rule dict to stripped string fields."""
     return {
         "symbol": str(rule.get("symbol", "")).strip(),
         "replacement": str(rule.get("replacement", "")).strip(),
@@ -24,6 +26,7 @@ def _normalize_rule(rule: dict[str, Any]) -> dict[str, str]:
 
 
 def _normalize_rules(rules: Iterable[dict[str, Any]]) -> list[dict[str, str]]:
+    """Normalize a sequence of rules, dropping entries without a symbol."""
     return [
         normalized
         for rule in rules
@@ -37,6 +40,7 @@ def _symbol_metrics(
     actual: Iterable[dict[str, str]],
     expected: Iterable[dict[str, str]],
 ) -> dict[str, int | float]:
+    """Compute precision, recall, and F1 over rule symbol sets."""
     actual_symbols = {rule["symbol"] for rule in actual}
     expected_symbols = {rule["symbol"] for rule in expected}
 
@@ -71,6 +75,7 @@ def _field_accuracy(
     expected: Iterable[dict[str, str]],
     field: str,
 ) -> float:
+    """Return the fraction of matched symbols with an identical field value."""
     actual_by_symbol = {rule["symbol"]: rule for rule in actual}
     expected_by_symbol = {rule["symbol"]: rule for rule in expected}
     matched_symbols = set(actual_by_symbol) & set(expected_by_symbol)
@@ -85,6 +90,7 @@ def _field_accuracy(
 
 
 def _is_valid_rule_list(raw_rules: object) -> bool:
+    """Return True when raw_rules is a list of dicts with string rule fields."""
     if not isinstance(raw_rules, list):
         return False
     return all(
@@ -97,6 +103,7 @@ def _is_valid_rule_list(raw_rules: object) -> bool:
 
 
 def _rules_signature(rules: Iterable[dict[str, str]]) -> tuple[tuple[str, str, str], ...]:
+    """Return a sorted signature used to compare rule sets across runs."""
     return tuple(
         sorted(
             (
@@ -152,6 +159,7 @@ def _aggregate_results(
     fixture_names: list[str],
     runs_per_fixture: int,
 ) -> dict[str, object]:
+    """Aggregate per-run fixture results into suite-level metrics."""
     actual: list[dict[str, str]] = []
     expected: list[dict[str, str]] = []
     for result in results:
@@ -288,6 +296,7 @@ def evaluate_suite(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the rules-extractor evaluation runner."""
     parser = argparse.ArgumentParser(description="Evaluate rules-extractor fixtures")
     parser.add_argument("fixtures_path", help="Path to one fixture or a fixture root")
     parser.add_argument("--output", help="Optional path to write the JSON report")
@@ -301,6 +310,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run rules-extractor evaluation for a fixture or fixture suite."""
     args = parse_args()
     if args.runs_per_fixture < 1:
         raise SystemExit("--runs-per-fixture must be at least 1")

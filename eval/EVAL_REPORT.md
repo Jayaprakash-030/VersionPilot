@@ -16,6 +16,7 @@ portfolio baseline results, measured limitations, and smoke-run evidence.
 | Reliability scenarios | Complete portfolio baseline | 10 / 10 scenarios passed |
 | Basic real-repository smoke runs | Complete smoke baseline | 5 / 5 runs completed |
 | Agent-mode smoke run | Complete smoke baseline | 1 / 1 run completed |
+| Cost / latency telemetry | Complete smoke baseline | 1 agent run instrumented |
 
 ## Deprecated API Scanner
 
@@ -241,9 +242,46 @@ Migration analysis notes:
 - These urllib3 findings are dependency release-note risks, not confirmed
   source-code deprecated API findings.
 
+## Cost / Latency Telemetry
+
+Agent-mode runs now emit a `telemetry` block on the saved report: per-node wall
+time, total wall time, token totals, and estimated USD cost (`gpt-5.4-nano` at
+$0.20 / 1M input and $1.25 / 1M output).
+
+Smoke measurement (2026-08-05) for `psf/requests` in agent mode:
+
+| Metric | Value |
+|---|---:|
+| Model | `gpt-5.4-nano` |
+| Total wall time | 28.03 s |
+| Input tokens | 6,565 |
+| Output tokens | 1,038 |
+| Estimated cost | $0.0026 |
+
+| Node | Wall time (s) |
+|---|---:|
+| planner | 1.50 |
+| evidence | 20.61 |
+| scoring | 0.001 |
+| critic | 0.81 |
+| report | 5.10 |
+
+Notes:
+
+- Evidence dominates latency (release-note fetch + per-dependency rules
+  extraction + optional clone/scan).
+- Cost is a list-price estimate from accumulated token totals, not a billed
+  invoice line.
+- `total_wall_ms` is end-to-end `invoke()` time; it can exceed the sum of
+  `node_timings_ms` by a small graph-overhead margin.
+
 ## Pending Evaluations
 
-No required evaluation item is currently pending for the Phase 4 baseline.
+Phase 4 portfolio baseline items are complete. Next evaluation work:
+
+- Groundedness eval for the report node (`eval/evaluate_groundedness.py`):
+  every key finding and migration recommendation must trace to a
+  provenance-tracked state signal.
 
 ## Current Limitations
 

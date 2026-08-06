@@ -10,10 +10,12 @@ from app.core.retry import RetryError, run_with_retry
 
 
 class ReleaseNotesFetcherError(Exception):
+    """Raised when release notes or package metadata cannot be fetched."""
     pass
 
 
 def fetch_release_notes(repo_url: str, timeout_seconds: int = 8) -> str | None:
+    """Fetch the latest GitHub release body for a repository URL."""
     ref = parse_repo_url(repo_url)
     release_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}/releases/latest"
     request = Request(
@@ -46,6 +48,7 @@ def fetch_release_notes(repo_url: str, timeout_seconds: int = 8) -> str | None:
 
 
 def _extract_github_repo_url(project_urls: dict[str, str] | None, home_page: str | None) -> str | None:
+    """Extract a GitHub repo URL from PyPI project URLs or homepage."""
     candidates: list[str] = []
     if isinstance(project_urls, dict):
         candidates.extend(str(v) for v in project_urls.values() if isinstance(v, str))
@@ -66,6 +69,7 @@ def _extract_github_repo_url(project_urls: dict[str, str] | None, home_page: str
 
 
 def fetch_dependency_release_notes(package_name: str, timeout_seconds: int = 8) -> dict:
+    """Fetch release notes for a PyPI package from GitHub or PyPI metadata."""
     request = Request(
         f"https://pypi.org/pypi/{package_name}/json",
         headers={

@@ -10,12 +10,14 @@ from .models import ScoreBreakdown
 
 @dataclass(frozen=True)
 class ScoringConfig:
+    """Versioned scoring weights and freshness gap policy."""
     version: str
     weights: Dict[str, float]
     include_gap_levels: FrozenSet[str]
 
 
 def _parse_simple_yaml(path: Path) -> ScoringConfig:
+    """Parse a minimal scoring YAML file into a ScoringConfig."""
     version = ""
     weights: Dict[str, float] = {}
     include_gap_levels: set[str] = {"major"}
@@ -82,6 +84,7 @@ def _parse_simple_yaml(path: Path) -> ScoringConfig:
 
 
 def load_scoring_config(config_path: str = "config/scoring_v1.yaml") -> ScoringConfig:
+    """Load scoring configuration from the given YAML path."""
     return _parse_simple_yaml(Path(config_path))
 
 
@@ -91,6 +94,7 @@ def compute_health_score(
     security_score: float,
     config: ScoringConfig,
 ) -> tuple[float, ScoreBreakdown]:
+    """Compute a weighted health score and score breakdown from component scores."""
     for value in (activity_score, dependency_score, security_score):
         if not 0 <= value <= 100:
             raise ValueError("All component scores must be in [0, 100]")
@@ -110,6 +114,7 @@ def compute_health_score(
 
 
 def risk_level_from_score(score: float) -> str:
+    """Map a numeric health score to a Low/Medium/High risk label."""
     if score >= 75:
         return "Low"
     if score >= 50:

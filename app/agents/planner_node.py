@@ -24,6 +24,7 @@ Rules:
 
 
 def _default_plan(repo_path: str) -> dict:
+    """Return the deterministic full-analysis plan used as a fallback."""
     # Always full — evidence_node auto-clones when repo_path is absent
     return {"strategy": "full", "skip_steps": []}
 

@@ -11,6 +11,7 @@ class MigrationPlanner:
         deprecated_findings: list[dict[str, Any]],
         breaking_change_analysis: dict[str, Any],
     ) -> Dict[str, Any]:
+        """Build an ordered migration plan from deprecated API and breaking-change findings."""
         steps: List[Dict[str, Any]] = []
 
         # Step 1: address explicit deprecated API findings.
@@ -51,6 +52,7 @@ class MigrationPlanner:
         }
 
     def _estimate_effort(self, step_count: int) -> str:
+        """Estimate migration effort as low, medium, or high from step count."""
         if step_count <= 2:
             return "low"
         if step_count <= 6:

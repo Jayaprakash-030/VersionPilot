@@ -9,10 +9,12 @@ T = TypeVar("T")
 
 
 class RetryError(Exception):
+    """Raised when a retried operation exhausts all attempts."""
     pass
 
 
 def _is_retryable(exc: Exception) -> bool:
+    """Return True when the exception warrants another retry attempt."""
     if isinstance(exc, (URLError, TimeoutError)):
         return True
 
@@ -28,6 +30,7 @@ def run_with_retry(
     max_attempts: int = 3,
     base_delay_seconds: float = 0.2,
 ) -> T:
+    """Execute an operation with exponential backoff on retryable failures."""
     if max_attempts < 1:
         raise ValueError("max_attempts must be >= 1")
 

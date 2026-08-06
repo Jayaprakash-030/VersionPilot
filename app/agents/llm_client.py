@@ -20,6 +20,7 @@ class LLMClient:
     OUTPUT_USD_PER_1M = 1.25
 
     def __init__(self, model: Optional[str] = None) -> None:
+        """Initialize the OpenAI client and per-run usage counters."""
         self.model = model or os.environ.get("OPENAI_MODEL", self.DEFAULT_MODEL)
         self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         self.total_input_tokens: int = 0
@@ -58,6 +59,7 @@ class LLMClient:
         )
 
     def _track_usage(self, response: object) -> None:
+        """Accumulate input and output token counts from an API response."""
         usage = getattr(response, "usage", None)
         if not usage:
             return
@@ -66,14 +68,17 @@ class LLMClient:
 
     @classmethod
     def estimate_cost_usd(cls, input_tokens: int, output_tokens: int) -> float:
+        """Estimate USD cost from input and output token counts."""
         return (input_tokens / 1_000_000 * cls.INPUT_USD_PER_1M) + (
             output_tokens / 1_000_000 * cls.OUTPUT_USD_PER_1M
         )
 
     def _cost_per_run(self, input_tokens: int, output_tokens: int) -> None:
+        """Update the client's estimated cost for the current token totals."""
         self.cost = self.estimate_cost_usd(input_tokens, output_tokens)
 
     def _extract_text(self, response: object) -> str:
+        """Pull plain text content out of an OpenAI Responses API payload."""
         output_text = getattr(response, "output_text", None)
         if isinstance(output_text, str):
             return output_text

@@ -3,6 +3,7 @@ from typing import NotRequired, TypedDict
 
 
 class VersionPilotState(TypedDict):
+    """Shared LangGraph state for a VersionPilot agent analysis run."""
     # Input
     repo_url: str
     repo_path: str
@@ -53,6 +54,7 @@ def create_initial_state(
     config_version: str = "config/scoring_v1.yaml",
     run_id: str = "",
 ) -> VersionPilotState:
+    """Build a blank VersionPilotState with defaults for a new analysis run."""
     return VersionPilotState(
         repo_url=repo_url,
         repo_path=repo_path,

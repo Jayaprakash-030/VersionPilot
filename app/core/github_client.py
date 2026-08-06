@@ -12,16 +12,19 @@ from .retry import RetryError, run_with_retry
 
 
 class GitHubClientError(Exception):
+    """Raised when GitHub API access or URL parsing fails."""
     pass
 
 
 @dataclass(frozen=True)
 class RepoRef:
+    """Owner and repository name parsed from a GitHub URL."""
     owner: str
     repo: str
 
 
 def parse_repo_url(repo_url: str) -> RepoRef:
+    """Parse a GitHub HTTPS URL into an owner/repo reference."""
     parsed = urlparse(repo_url.strip())
     if parsed.scheme not in {"http", "https"} or parsed.netloc != "github.com":
         raise GitHubClientError("Repo URL must be a GitHub URL like https://github.com/owner/repo")
@@ -35,6 +38,7 @@ def parse_repo_url(repo_url: str) -> RepoRef:
 
 def _days_since(iso_timestamp: str) -> int:
     # GitHub returns UTC timestamp like 2026-03-10T12:34:56Z.
+    """Return whole days elapsed since an ISO UTC timestamp."""
     pushed_at = datetime.strptime(iso_timestamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     now = datetime.now(timezone.utc)
     delta = now - pushed_at
@@ -42,6 +46,7 @@ def _days_since(iso_timestamp: str) -> int:
 
 
 def _fetch_last_release_days(ref: RepoRef, timeout_seconds: int) -> int | None:
+    """Return days since the latest GitHub release, or None if unavailable."""
     release_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}/releases/latest"
     release_request = Request(
         release_url,
@@ -71,6 +76,7 @@ def _fetch_last_release_days(ref: RepoRef, timeout_seconds: int) -> int | None:
 
 
 def _fetch_closed_issues_count(ref: RepoRef, timeout_seconds: int) -> int | None:
+    """Return the closed issue count for a repo via GitHub search, or None on failure."""
     search_url = (
         "https://api.github.com/search/issues"
         f"?q=repo:{ref.owner}/{ref.repo}+is:issue+is:closed&per_page=1"
@@ -99,6 +105,7 @@ def _fetch_closed_issues_count(ref: RepoRef, timeout_seconds: int) -> int | None
 
 
 def fetch_repo_metrics(repo_url: str, timeout_seconds: int = 8) -> RepoMetrics:
+    """Fetch repository activity metrics from the GitHub API."""
     ref = parse_repo_url(repo_url)
     api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}"
 

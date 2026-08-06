@@ -24,22 +24,31 @@ CRITICAL_FAILURE_STEPS = [
 
 
 class _UnavailableRulesExtractor:
+    """Stub rules extractor that always reports the LLM as unavailable."""
+
     last_extraction_status = "unavailable"
     last_extraction_error = "LLM unavailable"
 
     def build_rules_dict(self, package_name: str, notes_text: str) -> dict:
+        """Return an empty rules dict to simulate extraction failure."""
         return {}
 
 
 def _malformed_json_extractor() -> RulesExtractor:
+    """Build a RulesExtractor whose LLM returns invalid JSON."""
+
     class _BadLLM:
+        """LLM stub that returns a non-JSON response string."""
+
         def call(self, system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str:
+            """Return a non-JSON string to trigger extractor parse failure."""
             return "not valid json"
 
     return RulesExtractor(llm_client=_BadLLM())  # type: ignore[arg-type]
 
 
 def _scenario_result(name: str, migration_result: dict[str, Any]) -> dict[str, Any]:
+    """Build a reliability check result from a migration evaluation outcome."""
     report_generated = isinstance(migration_result, dict)
     misleading_success = bool(migration_result.get("passed"))
     return {
@@ -88,6 +97,7 @@ def evaluate_rules_extraction_failure_scenarios(
 
 
 def _create_report_state() -> dict[str, Any]:
+    """Create a populated agent state suitable for report-node scenarios."""
     state = create_initial_state("https://github.com/example/repo")
     state.update(
         {
@@ -123,6 +133,7 @@ def _create_report_state() -> dict[str, Any]:
 
 
 def _report_llm_invalid_json_scenario() -> dict[str, Any]:
+    """Verify report_node falls back when the LLM returns invalid JSON."""
     state = _create_report_state()
 
     with patch("app.agents.report_node.LLMClient.is_available", return_value=True), patch(
@@ -163,6 +174,7 @@ def _report_llm_invalid_json_scenario() -> dict[str, Any]:
 
 
 def _critic_rejected_report_scenario() -> dict[str, Any]:
+    """Verify critic rejection publishes Unverified risk without false confidence."""
     state = _create_report_state()
     state.update(
         {
@@ -200,6 +212,7 @@ def _critic_rejected_report_scenario() -> dict[str, Any]:
 
 
 def _critical_evidence_failure_scenario(failed_step: str) -> dict[str, Any]:
+    """Verify a critical evidence failure publishes Unknown rather than Low risk."""
     state = create_initial_state("https://github.com/example/repo")
     state.update(
         {
@@ -249,6 +262,7 @@ def _critical_evidence_failure_scenario(failed_step: str) -> dict[str, Any]:
 
 
 def _clone_failure_scenario() -> dict[str, Any]:
+    """Verify clone_repo failure is recorded in failed steps and provenance."""
     state = create_initial_state("https://github.com/example/repo", repo_path="")
 
     with patch("app.agents.evidence_node.ToolRegistry") as mock_registry_class, patch(
@@ -330,6 +344,7 @@ def evaluate_reliability_scenarios() -> dict[str, object]:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the reliability evaluation runner."""
     parser = argparse.ArgumentParser(description="Evaluate reliability scenarios")
     parser.add_argument(
         "--output",
@@ -339,6 +354,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run reliability scenarios and print or write the JSON report."""
     args = parse_args()
     result = evaluate_reliability_scenarios()
     output = json.dumps(result, indent=2)

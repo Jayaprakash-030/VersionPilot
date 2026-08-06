@@ -20,11 +20,15 @@ CRITICAL_FAILURE_STEPS = [
 
 
 class _ResultCollector:
+    """Collect pass/fail counts from pytest call-phase test reports."""
+
     def __init__(self) -> None:
+        """Initialize counters for passed and failed tests."""
         self.passed = 0
         self.failed = 0
 
     def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
+        """Update pass/fail counters from a pytest call-phase report."""
         if report.when != "call":
             return
         if report.passed:
@@ -56,6 +60,7 @@ def count_misleading_verified_low_results() -> int:
 
 
 def run_evaluation() -> dict[str, int]:
+    """Run scoring behavioral checks and return pass counts plus fail-safe metrics."""
     collector = _ResultCollector()
     pytest.main(["-q", "-p", "no:warnings", BEHAVIORAL_TEST_PATH], plugins=[collector])
     return {
@@ -66,6 +71,7 @@ def run_evaluation() -> dict[str, int]:
 
 
 def main() -> None:
+    """Run the scoring evaluation and print the JSON summary."""
     result = run_evaluation()
     print(json.dumps(result, indent=2))
 

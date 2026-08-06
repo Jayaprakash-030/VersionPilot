@@ -21,17 +21,20 @@ FOCUSED_TESTS = [
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    """Load a required JSON file or raise if it is missing."""
     if not path.exists():
         raise ValueError(f"missing required file: {path.relative_to(ROOT)}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _expect(condition: bool, message: str, failures: list[str]) -> None:
+    """Append a failure message when the expected condition is false."""
     if not condition:
         failures.append(message)
 
 
 def validate_registry(registry_path: Path = REGISTRY_PATH) -> list[str]:
+    """Validate the production model registry against the approved baseline."""
     failures: list[str] = []
     registry = _load_json(registry_path)
     production = registry.get("production", {})
@@ -59,6 +62,7 @@ def validate_registry(registry_path: Path = REGISTRY_PATH) -> list[str]:
 
 
 def validate_rules_extractor_report(path: Path = ROOT / "eval" / "rules_extractor_report.json") -> list[str]:
+    """Validate the rules-extractor eval report against baseline thresholds."""
     failures: list[str] = []
     report = _load_json(path)
 
@@ -75,6 +79,7 @@ def validate_rules_extractor_report(path: Path = ROOT / "eval" / "rules_extracto
 
 
 def validate_migration_report(path: Path = ROOT / "eval" / "migration_report.json") -> list[str]:
+    """Validate the migration eval report against baseline thresholds."""
     failures: list[str] = []
     report = _load_json(path)
 
@@ -99,6 +104,7 @@ def validate_migration_report(path: Path = ROOT / "eval" / "migration_report.jso
 
 
 def validate_reliability_report(path: Path = ROOT / "eval" / "reliability_report.json") -> list[str]:
+    """Validate the reliability eval report against baseline thresholds."""
     failures: list[str] = []
     report = _load_json(path)
 
@@ -115,6 +121,7 @@ def validate_reliability_report(path: Path = ROOT / "eval" / "reliability_report
 
 
 def run_focused_tests() -> tuple[bool, str]:
+    """Run the focused evaluation unit tests and return pass status plus output."""
     command = [sys.executable, "-m", "pytest", *FOCUSED_TESTS, "-q"]
     result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
     output = "\n".join(part for part in [result.stdout.strip(), result.stderr.strip()] if part)
@@ -122,6 +129,7 @@ def run_focused_tests() -> tuple[bool, str]:
 
 
 def run_promotion_gate(skip_tests: bool = False) -> list[str]:
+    """Run registry and eval-report validators, optionally plus focused tests."""
     failures: list[str] = []
 
     for validator in [
@@ -144,6 +152,7 @@ def run_promotion_gate(skip_tests: bool = False) -> list[str]:
 
 
 def main() -> int:
+    """CLI entry point for the VersionPilot promotion quality gate."""
     parser = argparse.ArgumentParser(description="Run VersionPilot promotion quality gate.")
     parser.add_argument(
         "--skip-tests",

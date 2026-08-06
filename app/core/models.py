@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 
 @dataclass(frozen=True)
 class RepoMetrics:
+    """Immutable GitHub repository activity metrics used for scoring."""
     stars: int
     forks: int
     last_commit_days: int
@@ -16,18 +17,21 @@ class RepoMetrics:
 
 @dataclass(frozen=True)
 class DependencyMetrics:
+    """Counts of total and outdated dependencies in a repo."""
     total_dependencies: int
     outdated_dependencies: int
 
 
 @dataclass(frozen=True)
 class DependencySpec:
+    """A single dependency name with an optional pinned version."""
     name: str
     version: str | None = None
 
 
 @dataclass(frozen=True)
 class SecurityMetrics:
+    """Vulnerability counts grouped by severity level."""
     critical: int
     high: int
     medium: int
@@ -36,6 +40,7 @@ class SecurityMetrics:
 
 @dataclass(frozen=True)
 class ScoreBreakdown:
+    """Per-component scores that contribute to the health score."""
     activity_score: float
     dependency_score: float
     security_score: float
@@ -43,6 +48,7 @@ class ScoreBreakdown:
 
 @dataclass(frozen=True)
 class HealthReport:
+    """Complete health assessment output for a repository run."""
     run_id: str
     repo_url: str
     config_version: str
@@ -58,4 +64,5 @@ class HealthReport:
     confidence_score: float
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize this health report to a plain dictionary."""
         return asdict(self)

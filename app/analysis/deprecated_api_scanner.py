@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List
 
 @dataclass(frozen=True)
 class DeprecatedAPIFinding:
+    """A single deprecated API usage finding in scanned source."""
     package: str
     symbol: str
     file_path: str
@@ -18,19 +19,23 @@ class DeprecatedAPIFinding:
     note: str
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize this finding to a plain dictionary."""
         return asdict(self)
 
 
 class DeprecatedAPIScannerError(Exception):
+    """Raised when deprecation rules or source scanning fails."""
     pass
 
 
 class DeprecatedAPIScanner:
+    """AST scanner that finds deprecated API usages from configured rules."""
     def __init__(
         self,
         rules_path: str = "data/deprecation_rules.json",
         rules: Dict[str, Any] | None = None,
     ) -> None:
+        """Initialize the scanner from a rules dict or rules JSON file path."""
         if rules is not None:
             self.rules = rules
         else:
@@ -38,6 +43,7 @@ class DeprecatedAPIScanner:
             self.rules = self._load_rules()
 
     def _load_rules(self) -> Dict[str, Any]:
+        """Load and parse deprecation rules from the configured JSON path."""
         if not self.rules_path.exists():
             raise DeprecatedAPIScannerError(f"Rules file not found: {self.rules_path}")
 
@@ -47,6 +53,7 @@ class DeprecatedAPIScanner:
             raise DeprecatedAPIScannerError("Invalid deprecation rules JSON") from exc
 
     def scan_repository_path(self, repo_path: str) -> List[DeprecatedAPIFinding]:
+        """Scan all Python files under a repository path for deprecated APIs."""
         root = Path(repo_path)
         if not root.exists() or not root.is_dir():
             raise DeprecatedAPIScannerError(f"Invalid repository path: {repo_path}")
@@ -57,6 +64,7 @@ class DeprecatedAPIScanner:
         return findings
 
     def scan_python_file(self, file_path: str) -> List[DeprecatedAPIFinding]:
+        """Scan a single Python file path for deprecated API usages."""
         path = Path(file_path)
         try:
             source = path.read_text(encoding="utf-8")
@@ -66,6 +74,7 @@ class DeprecatedAPIScanner:
         return self.scan_python_source(source, file_path)
 
     def scan_python_source(self, source: str, file_path: str = "<memory>") -> List[DeprecatedAPIFinding]:
+        """Scan Python source text for deprecated API usages against loaded rules."""
         try:
             tree = ast.parse(source)
         except SyntaxError:
@@ -99,6 +108,7 @@ class DeprecatedAPIScanner:
         return findings
 
     def _extract_symbol_uses(self, tree: ast.AST) -> Iterable[tuple[str, int]]:
+        """Yield imported and attribute symbol uses with their line numbers."""
         module_bindings = self._extract_module_bindings(tree)
 
         for node in ast.walk(tree):
@@ -124,6 +134,7 @@ class DeprecatedAPIScanner:
                     yield f"{normalized}{separator}{remainder}", node.lineno
 
     def _extract_module_bindings(self, tree: ast.AST) -> Dict[str, str]:
+        """Build a mapping from import aliases to their module root names."""
         bindings: Dict[str, str] = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -136,6 +147,7 @@ class DeprecatedAPIScanner:
         return bindings
 
     def _attribute_to_str(self, node: ast.Attribute) -> str | None:
+        """Convert an Attribute AST node into a dotted name string when possible."""
         parts: List[str] = []
         current: ast.AST | None = node
 

@@ -10,6 +10,7 @@ from app.tools.tool_registry import ToolRegistry
 
 
 def _now_iso() -> str:
+    """Return the current UTC time as an ISO-8601 timestamp string."""
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -27,6 +28,7 @@ def evidence_node(state: VersionPilotState) -> dict:
     telemetry = dict(state.get("telemetry") or {})
 
     def record_migration_check(step: str, status: str) -> None:
+        """Track migration-analysis step outcomes for completeness scoring."""
         nonlocal migration_checks_total, migration_checks_complete
         if status == "skipped":
             return

@@ -42,6 +42,7 @@ Rules:
 
 
 def _deprecated_api_rules_source(state: VersionPilotState) -> str:
+    """Return the provenance rules_source used for the deprecated API scan."""
     for entry in reversed(state.get("provenance") or []):
         if entry.get("source") == "deprecated_api_scan":
             return entry.get("rules_source", "unknown")
@@ -49,6 +50,7 @@ def _deprecated_api_rules_source(state: VersionPilotState) -> str:
 
 
 def _static_fallback_notice(state: VersionPilotState) -> str:
+    """Optional notice when the scan used limited static fallback rules."""
     if _deprecated_api_rules_source(state) != "static_fallback":
         return ""
     if state.get("deprecated_findings"):

@@ -16,6 +16,7 @@ from app.agents.state import VersionPilotState, create_initial_state
 
 
 def should_retry_or_report(state: VersionPilotState) -> str:
+    """Route to report on critic pass or retry limit, otherwise to recovery."""
     if state.get("critic_passed"):
         return "report"
     if state.get("retry_count", 0) >= 2:
@@ -24,6 +25,7 @@ def should_retry_or_report(state: VersionPilotState) -> str:
 
 
 def with_timing(node_name, function):
+    """Wrap a graph node to record its wall-clock duration in telemetry."""
     def wrapped(state):
         t0 = time.perf_counter()
         updates = function(state) or {}
@@ -46,6 +48,7 @@ def with_timing(node_name, function):
 
 
 def build_graph() -> StateGraph:
+    """Assemble and compile the VersionPilot LangGraph agent workflow."""
     graph = StateGraph(VersionPilotState)
 
     graph.add_node("planner", with_timing("planner", planner_node))
@@ -82,6 +85,7 @@ def run_graph(
     config_version: str = "config/scoring_v1.yaml",
     run_id: str = "",
 ) -> dict:
+    """Run the compiled agent graph for a repository and return final state."""
     initial_state = create_initial_state(
         repo_url, repo_path, config_version, run_id=run_id
     )

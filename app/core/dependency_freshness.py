@@ -10,6 +10,7 @@ from .retry import RetryError, run_with_retry
 
 
 class DependencyFreshnessError(Exception):
+    """Raised when dependency freshness lookups fail unexpectedly."""
     pass
 
 
@@ -17,6 +18,7 @@ DEFAULT_OUTDATED_GAP_POLICY = frozenset({"major"})
 
 
 def _to_mmp(version: str) -> tuple[int, int, int] | None:
+    """Parse a version string into a major/minor/patch tuple when possible."""
     try:
         parsed = Version(version)
     except InvalidVersion:
@@ -31,6 +33,7 @@ def _to_mmp(version: str) -> tuple[int, int, int] | None:
 
 
 def _version_gap_level(current: str, latest: str) -> str:
+    """Classify the version gap between current and latest as major, minor, patch, or none."""
     current_mmp = _to_mmp(current)
     latest_mmp = _to_mmp(latest)
     if current_mmp is None or latest_mmp is None:
@@ -51,11 +54,13 @@ def _version_gap_level(current: str, latest: str) -> str:
 
 
 def _is_outdated(current: str, latest: str, include_gap_levels: set[str] | frozenset[str] | None = None) -> bool:
+    """Return True when the version gap falls within the configured outdated policy."""
     policy = include_gap_levels if include_gap_levels is not None else DEFAULT_OUTDATED_GAP_POLICY
     return _version_gap_level(current, latest) in policy
 
 
 def _fetch_latest_pypi_version(package_name: str, timeout_seconds: int = 8) -> str | None:
+    """Fetch the latest published version for a package from PyPI."""
     request = Request(
         f"https://pypi.org/pypi/{package_name}/json",
         headers={
@@ -91,6 +96,7 @@ def count_outdated_dependencies(
     timeout_seconds: int = 8,
     include_gap_levels: set[str] | frozenset[str] | None = None,
 ) -> int:
+    """Count dependencies whose latest version exceeds the configured gap policy."""
     policy = include_gap_levels if include_gap_levels is not None else DEFAULT_OUTDATED_GAP_POLICY
     outdated = 0
     for dep in dependencies:

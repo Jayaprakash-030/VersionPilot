@@ -11,12 +11,14 @@ from .vulnerability_scanner import VulnerabilityScannerError, fetch_security_met
 
 
 def build_run_id(repo_url: str, config_version: str) -> str:
+    """Build a short deterministic run id from repo URL and config version."""
     payload = f"{repo_url}|{config_version}".encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
 def compute_activity_score(repo_metrics: RepoMetrics) -> float:
     # Simple deterministic baseline: stale commits/releases and open issues reduce activity score.
+    """Score repository activity from recency, releases, and issue resolution."""
     recency_penalty = float(min(repo_metrics.last_commit_days, 100))
     release_penalty = 0.0
     if repo_metrics.last_release_days is not None:
@@ -33,6 +35,7 @@ def compute_activity_score(repo_metrics: RepoMetrics) -> float:
 
 
 def compute_dependency_score(dependency_metrics: DependencyMetrics) -> float:
+    """Score dependency health from the outdated-to-total dependency ratio."""
     if dependency_metrics.total_dependencies <= 0:
         return 100.0
 
@@ -43,6 +46,7 @@ def compute_dependency_score(dependency_metrics: DependencyMetrics) -> float:
 
 def compute_security_score(security_metrics: SecurityMetrics) -> float:
     # Weighted penalty by severity; clamp to [0, 100].
+    """Score security posture from severity-weighted vulnerability counts."""
     penalty = (
         security_metrics.critical * 40
         + security_metrics.high * 20
@@ -73,6 +77,7 @@ def compute_data_quality(
     failed_steps: list[str],
     step_weights: dict[str, float] | None = None,
 ) -> tuple[float, float]:
+    """Compute data completeness and confidence from failed pipeline steps."""
     if "v1_pipeline" in failed_steps:
         return 0.0, 0.0
 
@@ -99,6 +104,7 @@ def compute_data_quality(
 
 
 def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> HealthReport:
+    """Run the V1 health pipeline and return a HealthReport for the repo."""
     config = load_scoring_config(config_path)
     failed_steps = []
     failed_reasons: dict[str, str] = {}

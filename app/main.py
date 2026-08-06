@@ -16,6 +16,7 @@ from .agents.graph import run_graph
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse VersionPilot CLI arguments for basic or agent mode runs."""
     parser = argparse.ArgumentParser(
         description="Deterministic AI Health Inspector (Step 1 scaffold)"
     )
@@ -65,6 +66,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_output_path(run_id: str, output_arg: str, mode: str = "basic") -> Path:
+    """Resolve the JSON artifact path, defaulting under artifacts/ by run id."""
     if output_arg:
         output_path = Path(output_arg)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -77,6 +79,7 @@ def resolve_output_path(run_id: str, output_arg: str, mode: str = "basic") -> Pa
 
 
 def main() -> None:
+    """CLI entry point: run basic or agent analysis and write the report."""
     args = parse_args()
     config = load_scoring_config(args.config)
     run_id = build_run_id(repo_url=args.repo_url, config_version=config.version)

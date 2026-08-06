@@ -13,6 +13,7 @@ from .retry import RetryError, run_with_retry
 
 
 class DependencyParserError(Exception):
+    """Raised when dependency manifests cannot be fetched or parsed."""
     pass
 
 
@@ -21,6 +22,7 @@ MAX_MANIFEST_FILES = 20
 
 
 def _extract_name_version(dep: str) -> DependencySpec | None:
+    """Parse a requirement string into a DependencySpec name and version."""
     base = dep.split(";", 1)[0].strip()
     if not base:
         return None
@@ -43,6 +45,7 @@ def _extract_name_version(dep: str) -> DependencySpec | None:
 
 
 def parse_requirements_specs(requirements_text: str) -> list[DependencySpec]:
+    """Parse requirements.txt text into unique DependencySpec entries."""
     specs: list[DependencySpec] = []
     seen_names: set[str] = set()
 
@@ -63,10 +66,12 @@ def parse_requirements_specs(requirements_text: str) -> list[DependencySpec]:
 
 
 def parse_requirements_text(requirements_text: str) -> list[str]:
+    """Parse requirements.txt text into a list of dependency names."""
     return [spec.name for spec in parse_requirements_specs(requirements_text)]
 
 
 def parse_pyproject_specs(pyproject_text: str) -> list[DependencySpec]:
+    """Parse pyproject.toml text into unique DependencySpec entries."""
     try:
         data = tomllib.loads(pyproject_text)
     except tomllib.TOMLDecodeError as exc:
@@ -76,6 +81,7 @@ def parse_pyproject_specs(pyproject_text: str) -> list[DependencySpec]:
     seen_names: set[str] = set()
 
     def _add_raw_dep(raw_dep: str) -> None:
+        """Add a raw dependency string to the specs list if not already seen."""
         spec = _extract_name_version(raw_dep)
         if spec and spec.name not in seen_names:
             specs.append(spec)
@@ -120,10 +126,12 @@ def parse_pyproject_specs(pyproject_text: str) -> list[DependencySpec]:
 
 
 def parse_pyproject_text(pyproject_text: str) -> list[str]:
+    """Parse pyproject.toml text into a list of dependency names."""
     return [spec.name for spec in parse_pyproject_specs(pyproject_text)]
 
 
 def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> str:
+    """Fetch and decode a file's contents from the GitHub Contents API."""
     ref = parse_repo_url(repo_url)
     api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}/contents/{path}"
 
@@ -147,6 +155,7 @@ def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> s
 
 
 def _fetch_default_branch(repo_url: str, timeout_seconds: int = 8) -> str:
+    """Fetch the repository's default branch name from GitHub."""
     ref = parse_repo_url(repo_url)
     api_url = f"https://api.github.com/repos/{ref.owner}/{ref.repo}"
 
@@ -171,6 +180,7 @@ def _discover_dependency_manifest_paths(
     repo_url: str,
     timeout_seconds: int = 8,
 ) -> list[str]:
+    """Discover requirements.txt and pyproject.toml paths in a GitHub repo tree."""
     ref = parse_repo_url(repo_url)
     default_branch = _fetch_default_branch(repo_url, timeout_seconds=timeout_seconds)
     api_url = (
@@ -203,6 +213,7 @@ def _discover_dependency_manifest_paths(
 
 
 def _merge_dependency_specs(spec_groups: list[list[DependencySpec]]) -> list[DependencySpec]:
+    """Merge dependency spec lists while keeping the first occurrence of each name."""
     merged: list[DependencySpec] = []
     seen_names: set[str] = set()
     for specs in spec_groups:
@@ -214,6 +225,7 @@ def _merge_dependency_specs(spec_groups: list[list[DependencySpec]]) -> list[Dep
 
 
 def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[DependencySpec]:
+    """Fetch and merge dependency specs from manifests in a GitHub repository."""
     dependency_groups: list[list[DependencySpec]] = []
     manifest_available = False
     errors: list[str] = []
@@ -267,5 +279,6 @@ def fetch_dependencies(repo_url: str, timeout_seconds: int = 8) -> list[Dependen
 
 
 def fetch_dependency_metrics(repo_url: str, timeout_seconds: int = 8) -> DependencyMetrics:
+    """Fetch dependency counts for a repo with outdated count left at zero."""
     dependencies = fetch_dependencies(repo_url, timeout_seconds=timeout_seconds)
     return DependencyMetrics(total_dependencies=len(dependencies), outdated_dependencies=0)

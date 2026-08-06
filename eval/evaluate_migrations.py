@@ -13,10 +13,12 @@ from app.tools.rules_extractor import RulesExtractor
 
 
 def _load_json(path: Path) -> Any:
+    """Load and parse a JSON file from disk."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _normalize_finding(finding: dict[str, Any], project_root: Path) -> dict[str, Any]:
+    """Normalize a finding dict with a project-relative file path."""
     file_path = Path(str(finding.get("file_path", "")))
     try:
         normalized_path = file_path.relative_to(project_root)
@@ -34,6 +36,7 @@ def _normalize_finding(finding: dict[str, Any], project_root: Path) -> dict[str,
 
 
 def _finding_key(finding: dict[str, Any]) -> tuple[str, str, int]:
+    """Return a comparable key for a scanner finding."""
     return (
         str(finding.get("symbol", "")),
         str(finding.get("file_path", "")),
@@ -42,6 +45,7 @@ def _finding_key(finding: dict[str, Any]) -> tuple[str, str, int]:
 
 
 def _plan_step_key(step: dict[str, Any]) -> tuple[str, str, str]:
+    """Return a comparable key for a migration plan step."""
     return (
         str(step.get("type", "")),
         str(step.get("symbol", "")),
@@ -50,6 +54,7 @@ def _plan_step_key(step: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def _run_migrated_project_tests(fixture: Path) -> dict[str, object]:
+    """Run pytest on a fixture migrated_project if it exists."""
     migrated_project = fixture / "migrated_project"
     if not migrated_project.exists():
         return {
@@ -171,6 +176,7 @@ def evaluate_suite(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the migration evaluation runner."""
     parser = argparse.ArgumentParser(description="Evaluate controlled migration cases")
     parser.add_argument("fixtures_path", help="Path to one fixture or a fixture root")
     parser.add_argument("--output", help="Optional path to write the JSON report")
@@ -178,6 +184,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run migration evaluation for a fixture or fixture suite."""
     args = parse_args()
     path = Path(args.fixtures_path)
     result = (

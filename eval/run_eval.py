@@ -10,6 +10,7 @@ from app.core.pipeline import run_pipeline
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the batch benchmark evaluation runner."""
     parser = argparse.ArgumentParser(description="Run benchmark evaluation across repository URLs")
     parser.add_argument(
         "--repos-file",
@@ -30,6 +31,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_repo_urls(path: str) -> list[str]:
+    """Load non-empty, non-comment repository URLs from a text file."""
     lines = Path(path).read_text(encoding="utf-8").splitlines()
     repos: list[str] = []
     for raw in lines:
@@ -41,6 +43,7 @@ def load_repo_urls(path: str) -> list[str]:
 
 
 def summarize(results: list[dict]) -> dict:
+    """Aggregate per-repo pipeline results into summary statistics."""
     if not results:
         return {
             "total_repos": 0,
@@ -91,6 +94,7 @@ def summarize(results: list[dict]) -> dict:
 
 
 def main() -> None:
+    """Run the V1 pipeline across benchmark repos and write an eval report."""
     args = parse_args()
     repo_urls = load_repo_urls(args.repos_file)
 
