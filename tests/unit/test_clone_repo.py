@@ -69,7 +69,7 @@ def _noop_registry():
     r.run_v1_pipeline.return_value = {"status": "ok", "repo_metrics": {}, "dependency_metrics": {},
                                        "security_metrics": {}, "breakdown": {}, "failed_steps": [],
                                        "data_completeness": 1.0, "confidence_score": 1.0}
-    r.fetch_dependency_names.return_value = {"status": "ok", "names": []}
+    r.fetch_dependency_names.return_value = {"status": "ok", "dependencies": []}
     r.scan_deprecated_apis.return_value = {"status": "ok", "findings": []}
     r.generate_migration_plan.return_value = {"status": "ok", "steps": [], "total_steps": 0, "effort_level": "low"}
     r.clone_repo.return_value = {"status": "ok", "repo_path": "/tmp/versionpilot-test"}

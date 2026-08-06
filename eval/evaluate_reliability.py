@@ -276,7 +276,7 @@ def _clone_failure_scenario() -> dict[str, Any]:
             "security_metrics": {},
             "failed_steps": [],
         }
-        registry.fetch_dependency_names.return_value = {"status": "ok", "names": []}
+        registry.fetch_dependency_names.return_value = {"status": "ok", "dependencies": []}
         registry.clone_repo.return_value = {
             "status": "error",
             "error": "network error",

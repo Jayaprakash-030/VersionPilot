@@ -10,8 +10,12 @@ from app.core.dependency_parser import fetch_dependencies
 from app.analysis.deprecated_api_scanner import DeprecatedAPIScanner
 from app.analysis.migration_planner import MigrationPlanner
 from app.core.pipeline import run_pipeline
-from app.analysis.release_notes_fetcher import fetch_release_notes as _fetch_release_notes
-from app.analysis.release_notes_fetcher import fetch_dependency_release_notes as _fetch_dep_release_notes
+from app.analysis.release_notes_fetcher import (
+    fetch_release_notes as _fetch_release_notes,
+)
+from app.analysis.release_notes_fetcher import (
+    fetch_dependency_release_notes as _fetch_dep_release_notes,
+)
 
 
 def _now_iso() -> str:
@@ -62,7 +66,9 @@ class ToolRegistry:
     # V1 pipeline
     # ------------------------------------------------------------------
 
-    def run_v1_pipeline(self, repo_url: str, config_path: str = "config/scoring_v1.yaml") -> dict[str, Any]:
+    def run_v1_pipeline(
+        self, repo_url: str, config_path: str = "config/scoring_v1.yaml"
+    ) -> dict[str, Any]:
         """Run the full V1 pipeline and return the HealthReport as a dict."""
         try:
             report = run_pipeline(repo_url=repo_url, config_path=config_path)
@@ -140,7 +146,12 @@ class ToolRegistry:
         """Return the list of dependency package names parsed from the repo."""
         try:
             specs = fetch_dependencies(repo_url)
-            return {"status": "ok", "names": [s.name for s in specs]}
+            return {
+                "status": "ok",
+                "dependencies": [
+                    {"name": s.name, "version": s.version} for s in specs
+                ],  # version may be None if unpinned,
+            }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
@@ -160,10 +171,12 @@ class ToolRegistry:
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
-    def fetch_dependency_release_notes(self, package_name: str) -> dict[str, Any]:
+    def fetch_dependency_release_notes(
+        self, package_name: str, version: str | None = None
+    ) -> dict[str, Any]:
         """Fetch release notes for a PyPI package by name."""
         try:
-            result = _fetch_dep_release_notes(package_name)
+            result = _fetch_dep_release_notes(package_name, version)
             return {"status": result.get("status", "ok"), **result}
         except Exception as exc:
             return {"status": "error", "error": str(exc)}

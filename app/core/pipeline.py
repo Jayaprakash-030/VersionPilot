@@ -6,7 +6,11 @@ from .dependency_freshness import DependencyFreshnessError, count_outdated_depen
 from .dependency_parser import DependencyParserError, fetch_dependencies
 from .github_client import GitHubClientError, fetch_repo_metrics
 from .models import DependencyMetrics, HealthReport, RepoMetrics, SecurityMetrics
-from .risk_scoring import compute_health_score, load_scoring_config, risk_level_from_score
+from .risk_scoring import (
+    compute_health_score,
+    load_scoring_config,
+    risk_level_from_score,
+)
 from .vulnerability_scanner import VulnerabilityScannerError, fetch_security_metrics
 
 
@@ -30,7 +34,13 @@ def compute_activity_score(repo_metrics: RepoMetrics) -> float:
         resolution_rate = repo_metrics.closed_issues / total_issues
         resolution_bonus = round(resolution_rate * 15.0, 2)
 
-    score = 100.0 - recency_penalty - release_penalty - open_issue_penalty + resolution_bonus
+    score = (
+        100.0
+        - recency_penalty
+        - release_penalty
+        - open_issue_penalty
+        + resolution_bonus
+    )
     return max(0.0, min(100.0, round(score, 2)))
 
 
@@ -39,7 +49,9 @@ def compute_dependency_score(dependency_metrics: DependencyMetrics) -> float:
     if dependency_metrics.total_dependencies <= 0:
         return 100.0
 
-    outdated_ratio = dependency_metrics.outdated_dependencies / dependency_metrics.total_dependencies
+    outdated_ratio = (
+        dependency_metrics.outdated_dependencies / dependency_metrics.total_dependencies
+    )
     score = 100.0 - (outdated_ratio * 100.0)
     return max(0.0, min(100.0, round(score, 2)))
 
@@ -57,13 +69,15 @@ def compute_security_score(security_metrics: SecurityMetrics) -> float:
     return max(0.0, min(100.0, round(score, 2)))
 
 
-_CRITICAL_STEPS = frozenset({
-    "github_data_collector",
-    "dependency_parser",
-    "dependency_freshness",
-    "vulnerability_scanner",
-    "v1_pipeline",
-})
+_CRITICAL_STEPS = frozenset(
+    {
+        "github_data_collector",
+        "dependency_parser",
+        "dependency_freshness",
+        "vulnerability_scanner",
+        "v1_pipeline",
+    }
+)
 
 
 def determine_risk_level(health_score: float, failed_steps: list[str]) -> str:
@@ -103,7 +117,9 @@ def compute_data_quality(
     return data_completeness, confidence_score
 
 
-def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> HealthReport:
+def run_pipeline(
+    repo_url: str, config_path: str = "config/scoring_v1.yaml"
+) -> HealthReport:
     """Run the V1 health pipeline and return a HealthReport for the repo."""
     config = load_scoring_config(config_path)
     failed_steps = []
@@ -124,6 +140,7 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         )
 
     try:
+        breakpoint()
         dependencies = fetch_dependencies(repo_url)
         try:
             outdated_dependencies = count_outdated_dependencies(
@@ -143,7 +160,9 @@ def run_pipeline(repo_url: str, config_path: str = "config/scoring_v1.yaml") -> 
         failed_steps.append("dependency_parser")
         failed_reasons["dependency_parser"] = str(exc)
         dependencies = []
-        dependency_metrics = DependencyMetrics(total_dependencies=0, outdated_dependencies=0)
+        dependency_metrics = DependencyMetrics(
+            total_dependencies=0, outdated_dependencies=0
+        )
 
     try:
         security_metrics = fetch_security_metrics(dependencies)

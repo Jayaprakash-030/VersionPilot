@@ -35,7 +35,13 @@ _PIPELINE_OK = {
     "confidence_score": 0.9,
 }
 
-_DEP_NAMES_OK = {"status": "ok", "names": ["requests", "flask"]}
+_DEP_NAMES_OK = {
+    "status": "ok",
+    "dependencies": [
+        {"name": "requests", "version": None},
+        {"name": "flask", "version": None},
+    ],
+}
 
 _NOTES_OK = {"status": "ok", "notes_text": "Deprecated old_func. Use new_func instead.", "latest_version": "2.0.0"}
 _NOTES_EMPTY = {"status": "ok", "notes_text": "", "latest_version": "1.0.0"}
@@ -146,7 +152,10 @@ def test_release_notes_failure_reduces_only_migration_completeness():
          patch("app.agents.evidence_node.RulesExtractor"):
         registry = MockRegistry.return_value
         registry.run_v1_pipeline.return_value = _PIPELINE_OK
-        registry.fetch_dependency_names.return_value = {"status": "ok", "names": ["requests"]}
+        registry.fetch_dependency_names.return_value = {
+            "status": "ok",
+            "dependencies": [{"name": "requests", "version": None}],
+        }
         registry.fetch_dependency_release_notes.return_value = {
             "status": "error", "error": "network timeout",
         }
@@ -166,7 +175,10 @@ def test_changelog_and_rule_extraction_failures_are_visible():
          patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
         registry = MockRegistry.return_value
         registry.run_v1_pipeline.return_value = _PIPELINE_OK
-        registry.fetch_dependency_names.return_value = {"status": "ok", "names": ["requests"]}
+        registry.fetch_dependency_names.return_value = {
+            "status": "ok",
+            "dependencies": [{"name": "requests", "version": None}],
+        }
         registry.fetch_dependency_release_notes.return_value = _NOTES_OK
         registry.analyze_changelog.return_value = {"status": "error", "error": "parse error"}
         registry.generate_migration_plan.return_value = _MIGRATION_OK
@@ -253,7 +265,10 @@ def test_llm_rules_passed_to_scan_deprecated_apis():
          patch("app.agents.evidence_node.RulesExtractor") as MockExtractor:
         registry = MockRegistry.return_value
         registry.run_v1_pipeline.return_value = _PIPELINE_OK
-        registry.fetch_dependency_names.return_value = {"status": "ok", "names": ["requests"]}
+        registry.fetch_dependency_names.return_value = {
+            "status": "ok",
+            "dependencies": [{"name": "requests", "version": None}],
+        }
         registry.fetch_dependency_release_notes.return_value = _NOTES_OK
         registry.analyze_changelog.return_value = _CHANGELOG_OK
         registry.scan_deprecated_apis.return_value = dynamic_scan_result

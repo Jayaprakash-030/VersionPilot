@@ -11,6 +11,7 @@ from app.core.retry import RetryError, run_with_retry
 
 class ReleaseNotesFetcherError(Exception):
     """Raised when release notes or package metadata cannot be fetched."""
+
     pass
 
 
@@ -47,7 +48,9 @@ def fetch_release_notes(repo_url: str, timeout_seconds: int = 8) -> str | None:
     return None
 
 
-def _extract_github_repo_url(project_urls: dict[str, str] | None, home_page: str | None) -> str | None:
+def _extract_github_repo_url(
+    project_urls: dict[str, str] | None, home_page: str | None
+) -> str | None:
     """Extract a GitHub repo URL from PyPI project URLs or homepage."""
     candidates: list[str] = []
     if isinstance(project_urls, dict):
@@ -68,10 +71,18 @@ def _extract_github_repo_url(project_urls: dict[str, str] | None, home_page: str
     return None
 
 
-def fetch_dependency_release_notes(package_name: str, timeout_seconds: int = 8) -> dict:
+def fetch_dependency_release_notes(
+    package_name: str,
+    version: str | None = None,
+    timeout_seconds: int = 8,
+) -> dict:
     """Fetch release notes for a PyPI package from GitHub or PyPI metadata."""
+    if version:
+        pypi_url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+    else:
+        pypi_url = f"https://pypi.org/pypi/{package_name}/json"
     request = Request(
-        f"https://pypi.org/pypi/{package_name}/json",
+        pypi_url,
         headers={
             "Accept": "application/json",
             "User-Agent": "ai-health-inspector/0.1",
@@ -93,11 +104,17 @@ def fetch_dependency_release_notes(package_name: str, timeout_seconds: int = 8) 
                 "latest_version": None,
                 "notes_text": "",
             }
-        raise ReleaseNotesFetcherError(f"Failed to fetch package metadata for {package_name}: {exc}") from exc
+        raise ReleaseNotesFetcherError(
+            f"Failed to fetch package metadata for {package_name}: {exc}"
+        ) from exc
     except RetryError as exc:
-        raise ReleaseNotesFetcherError(f"Failed to fetch package metadata for {package_name}: {exc}") from exc
+        raise ReleaseNotesFetcherError(
+            f"Failed to fetch package metadata for {package_name}: {exc}"
+        ) from exc
     except (URLError, TimeoutError) as exc:
-        raise ReleaseNotesFetcherError(f"Failed to fetch package metadata for {package_name}: {exc}") from exc
+        raise ReleaseNotesFetcherError(
+            f"Failed to fetch package metadata for {package_name}: {exc}"
+        ) from exc
 
     info = payload.get("info", {}) if isinstance(payload, dict) else {}
     latest_version = info.get("version")
@@ -106,7 +123,9 @@ def fetch_dependency_release_notes(package_name: str, timeout_seconds: int = 8) 
 
     github_repo_url = _extract_github_repo_url(project_urls, home_page)
     if github_repo_url:
-        notes_text = fetch_release_notes(github_repo_url, timeout_seconds=timeout_seconds)
+        notes_text = fetch_release_notes(
+            github_repo_url, timeout_seconds=timeout_seconds
+        )
         if notes_text:
             return {
                 "package": package_name,

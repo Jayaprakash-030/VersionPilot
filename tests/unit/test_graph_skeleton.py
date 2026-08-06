@@ -15,7 +15,13 @@ _PIPELINE_RESULT = {
     "security_metrics": {"critical": 0, "high": 0, "medium": 0, "low": 0},
 }
 
-_DEP_NAMES_RESULT = {"status": "ok", "dependencies": ["requests", "flask"]}
+_DEP_NAMES_RESULT = {
+    "status": "ok",
+    "dependencies": [
+        {"name": "requests", "version": None},
+        {"name": "flask", "version": None},
+    ],
+}
 
 _RELEASE_NOTES_RESULT = {"status": "ok", "notes": "No breaking changes."}
 
