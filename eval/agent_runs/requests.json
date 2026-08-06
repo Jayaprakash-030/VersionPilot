@@ -1,0 +1,53 @@
+{
+  "summary": "Health score: 68.0 (Medium risk). 0 deprecated API finding(s), 3 migration step(s). Data completeness: 100%.",
+  "health_score": 68.05,
+  "risk_level": "Medium",
+  "key_findings": [],
+  "migration_recommendations": [
+    {
+      "action": "Removed support for end-of-life Python 3.9. (https://github.com/urllib3/urllib3/issues/3720)",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=urllib3, confidence=regex_heuristic, span=1.26\u21922.7.0"
+    },
+    {
+      "action": "Removed support for end-of-life PyPy3.10. (https://github.com/urllib3/urllib3/issues/4979)",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=urllib3, confidence=regex_heuristic, span=1.26\u21922.7.0"
+    },
+    {
+      "action": "Flattened the logic in `charset_normalizer.md` for higher performance. Removed `eligible(..)` and `feed(...)`",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=charset_normalizer, confidence=regex_heuristic, span=2\u21923.4.9"
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 0.96,
+    "migration_analysis_failed_steps": [
+      "rules_extraction:Sphinx"
+    ],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "401d551289d72bf3",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 2090.2345000067726,
+      "evidence": 36453.02091597114,
+      "scoring": 1.5421659918501973,
+      "critic": 3936.6269579622895,
+      "report": 7209.10575002199
+    },
+    "total_wall_ms": 49702.24999997299,
+    "input_tokens": 19156,
+    "output_tokens": 2242,
+    "estimated_cost_usd": 0.0066337
+  }
+}

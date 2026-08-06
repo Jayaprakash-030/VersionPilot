@@ -1,0 +1,72 @@
+{
+  "summary": "Overall dependency health is rated 64.49 with Medium risk, driven by a low security score (44.0) alongside numerous dependency update findings. The primary actionable items are deprecation and breaking-change notes across key transitive dependencies (e.g., redis type-checking changes, and deprecations in Celery/async-timeout/Blinker/Werkzeug).",
+  "health_score": 64.49,
+  "risk_level": "Medium",
+  "key_findings": [
+    {
+      "finding": "Flask 3.1.3 update is a security fix release (finding severity: high).",
+      "evidence": "package=flask, from_version=unknown to_version=3.1.3, finding_count=1, findings include category=breaking_change text='Flask 3.1.3 security fix release...' severity=high.",
+      "severity": "high"
+    },
+    {
+      "finding": "Celery update includes a breaking change in smoke tests (removed --dist=loadscope).",
+      "evidence": "package=celery, from_version=unknown to_version=5.6.3, finding_count=2; breaking_change text='Removed --dist=loadscope from smoke tests...' severity=high; PR referenced.",
+      "severity": "high"
+    },
+    {
+      "finding": "redis update introduces a type-checking breaking change: overloads now distinguish sync vs async return types.",
+      "evidence": "package=redis, from_version=4.5.4 to_version=8.1.0, finding_count=1, category=breaking_change; text='breaking change for type-checking only... old union return types... may need updates' severity=high.",
+      "severity": "high"
+    },
+    {
+      "finding": "Jinja2 has multiple security fix releases flagged as breaking_change with high severity.",
+      "evidence": "package=jinja2, from_version=3.1.2 to_version=3.1.6, finding_count=3; findings category=breaking_change text='Jinja 3.1.6 security release...' severity=high (also 3.1.5 and 3.1.4).",
+      "severity": "high"
+    },
+    {
+      "finding": "Werkzeug has 15 findings with 12 high severity breaking_change/security notes across 3.1.x and 3.0.x fix/security releases.",
+      "evidence": "package=werkzeug, from_version=2.3.3 to_version=3.1.8, finding_count=15, severity_counts high=12 medium=3; multiple findings include 'security fix release' severity=high and deprecations like OrderedMultiDict/ImmutableOrderedMultiDict.",
+      "severity": "high"
+    },
+    {
+      "finding": "Blinked lists 10 findings for the upgrade to 1.9.0 including deprecations and multiple high-severity fix-release notes.",
+      "evidence": "package=blinker, from_version=1.6.2 to_version=1.9.0, finding_count=10, severity_counts high=2 medium=8; includes deprecation removals (e.g., '__version__', receiver_connected, WeakNamespace) and deprecation wording about removal next version.",
+      "severity": "medium"
+    }
+  ],
+  "migration_recommendations": [
+    {
+      "action": "Review and update redis type annotations impacted by the new sync/async overload return types.",
+      "priority": "high",
+      "reason": "Data includes a high-severity breaking change for type-checking only: redis from 4.5.4 to 8.1.0 applies @overload to return distinct sync vs async types; it states code relying on old union return types may need updates."
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 1.0,
+    "migration_analysis_failed_steps": [],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "d32e8658172ed521",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 1534.0734159690328,
+      "evidence": 68469.8177499813,
+      "scoring": 0.6334169884212315,
+      "critic": 965.1792080258019,
+      "report": 6833.007000037469
+    },
+    "total_wall_ms": 77809.50591596775,
+    "input_tokens": 50929,
+    "output_tokens": 2821,
+    "estimated_cost_usd": 0.013712050000000002
+  }
+}

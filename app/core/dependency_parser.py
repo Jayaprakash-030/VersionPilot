@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import tomllib
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -19,6 +20,18 @@ class DependencyParserError(Exception):
 
 MANIFEST_FILENAMES = frozenset({"requirements.txt", "pyproject.toml"})
 MAX_MANIFEST_FILES = 20
+
+
+def _github_headers() -> dict[str, str]:
+    """Build GitHub API headers, using a token when available."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "ai-health-inspector/0.1",
+    }
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
 
 
 def _extract_name_version(dep: str) -> DependencySpec | None:
@@ -137,10 +150,7 @@ def _fetch_file_content(repo_url: str, path: str, timeout_seconds: int = 8) -> s
 
     request = Request(
         api_url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "ai-health-inspector/0.1",
-        },
+        headers=_github_headers(),
     )
 
     def _operation() -> dict:
@@ -161,10 +171,7 @@ def _fetch_default_branch(repo_url: str, timeout_seconds: int = 8) -> str:
 
     request = Request(
         api_url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "ai-health-inspector/0.1",
-        },
+        headers=_github_headers(),
     )
 
     def _operation() -> dict:
@@ -190,10 +197,7 @@ def _discover_dependency_manifest_paths(
 
     request = Request(
         api_url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "ai-health-inspector/0.1",
-        },
+        headers=_github_headers(),
     )
 
     def _operation() -> dict:

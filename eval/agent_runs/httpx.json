@@ -1,0 +1,64 @@
+{
+  "summary": "Health score: 43.4 (High risk). 0 deprecated API finding(s), 5 migration step(s). Data completeness: 100%.",
+  "health_score": 43.39,
+  "risk_level": "High",
+  "key_findings": [],
+  "migration_recommendations": [
+    {
+      "action": "Removed support for Python 2.7, 3.5, and 3.6",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=brotlicffi, confidence=regex_heuristic, span=unknown\u21921.2.0.1"
+    },
+    {
+      "action": "Breaking change: Dropped support for Python3.8",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=rich, confidence=regex_heuristic, span=10\u219215.0.0"
+    },
+    {
+      "action": "Removed CI coverage for PyPy 3.7 and 3.8, which are no longer supported",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=zstandard, confidence=regex_heuristic, span=0.18.0\u21920.25.0"
+    },
+    {
+      "action": "Removed the ``dictionary`` parameter from ``compress`` and ``Compressor``",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=brotlicffi, confidence=regex_heuristic, span=unknown\u21921.2.0.1"
+    },
+    {
+      "action": "Removed CI coverage for PyPy 3.9.",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=zstandard, confidence=regex_heuristic, span=0.18.0\u21920.25.0"
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 0.97,
+    "migration_analysis_failed_steps": [
+      "rules_extraction:pytest",
+      "rules_extraction:ruff"
+    ],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "623fefc4b1af9191",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 1925.751707982272,
+      "evidence": 86337.18408300774,
+      "scoring": 1.379416964482516,
+      "critic": 750.0344170257449,
+      "report": 8429.309000028297
+    },
+    "total_wall_ms": 97450.99045796087,
+    "input_tokens": 45262,
+    "output_tokens": 3401,
+    "estimated_cost_usd": 0.01330365
+  }
+}

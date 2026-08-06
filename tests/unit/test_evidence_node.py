@@ -398,3 +398,101 @@ def test_up_to_date_and_no_notes_do_not_count_as_migration_failures():
     assert "release_notes:requests" not in result["migration_analysis_failed_steps"]
     assert "release_notes:flask" not in result["migration_analysis_failed_steps"]
     assert result["migration_analysis_completeness"] == 1.0
+
+
+def test_migration_filter_updates_plan_and_provenance():
+    with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
+         patch("app.agents.evidence_node.RulesExtractor") as MockExtractor, \
+         patch("app.agents.evidence_node.filter_migration_plan") as mock_filter:
+        registry = MockRegistry.return_value
+        registry.run_v1_pipeline.return_value = _PIPELINE_OK
+        registry.fetch_dependency_names.return_value = {
+            "status": "ok",
+            "dependencies": [{"name": "requests", "version": None}],
+        }
+        registry.fetch_dependency_release_notes.return_value = _NOTES_OK
+        registry.analyze_changelog.return_value = {
+            "status": "ok",
+            "package": "requests",
+            "from_version": "2.0.0",
+            "to_version": "3.0.0",
+            "findings": [
+                {
+                    "category": "breaking_change",
+                    "text": "Removed old API",
+                    "severity": "high",
+                    "confidence": "regex_heuristic",
+                }
+            ],
+        }
+        registry.generate_migration_plan.return_value = {
+            "status": "ok",
+            "total_steps": 1,
+            "effort_level": "low",
+            "steps": [
+                {
+                    "type": "breaking_change_review",
+                    "action": "Removed old API",
+                    "package": "requests",
+                    "severity": "high",
+                    "confidence": "regex_heuristic",
+                }
+            ],
+        }
+        MockExtractor.return_value.build_rules_dict.return_value = {}
+        mock_filter.return_value = {
+            "status": "ok",
+            "reason": "filtered",
+            "candidate_count": 1,
+            "kept_count": 0,
+            "dropped_count": 1,
+            "telemetry": {"input_tokens": 3, "output_tokens": 1, "estimated_cost_usd": 0.0, "model": "gpt-5.4-nano", "node_timings_ms": {}, "total_wall_ms": 0.0},
+            "migration_plan": {"status": "ok", "total_steps": 0, "effort_level": "low", "steps": [], "llm_filter": {"status": "ok"}},
+        }
+
+        result = evidence_node(_base_state(agent_plan={"strategy": "lightweight", "skip_steps": ["deprecated_api_scan"]}))
+
+    assert result["migration_plan"]["steps"] == []
+    filter_entry = next(p for p in result["provenance"] if p["source"] == "migration_filter")
+    assert filter_entry["status"] == "ok"
+    assert filter_entry["dropped_count"] == 1
+
+
+def test_migration_filter_error_uses_fallback_plan_and_marks_migration_failure():
+    original_plan = {
+        "status": "ok",
+        "total_steps": 1,
+        "effort_level": "low",
+        "steps": [
+            {
+                "type": "breaking_change_review",
+                "action": "Removed old API",
+                "package": "requests",
+                "severity": "high",
+                "confidence": "regex_heuristic",
+            }
+        ],
+    }
+    with patch("app.agents.evidence_node.ToolRegistry") as MockRegistry, \
+         patch("app.agents.evidence_node.RulesExtractor") as MockExtractor, \
+         patch("app.agents.evidence_node.filter_migration_plan") as mock_filter:
+        registry = MockRegistry.return_value
+        registry.run_v1_pipeline.return_value = _PIPELINE_OK
+        registry.fetch_dependency_names.return_value = _DEP_NAMES_OK
+        registry.fetch_dependency_release_notes.return_value = _NOTES_EMPTY
+        registry.generate_migration_plan.return_value = original_plan
+        MockExtractor.return_value.build_rules_dict.return_value = {}
+        mock_filter.return_value = {
+            "status": "error",
+            "reason": "bad json",
+            "candidate_count": 1,
+            "kept_count": 1,
+            "dropped_count": 0,
+            "telemetry": {"input_tokens": 2, "output_tokens": 1, "estimated_cost_usd": 0.0, "model": "gpt-5.4-nano", "node_timings_ms": {}, "total_wall_ms": 0.0},
+            "migration_plan": {**original_plan, "llm_filter": {"status": "fallback"}},
+        }
+
+        result = evidence_node(_base_state(agent_plan={"strategy": "lightweight", "skip_steps": ["deprecated_api_scan"]}))
+
+    assert result["migration_plan"]["steps"] == original_plan["steps"]
+    assert "migration_filter" in result["migration_analysis_failed_steps"]

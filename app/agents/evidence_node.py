@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 from datetime import datetime, timezone
 
+from app.agents.migration_filter import filter_migration_plan
 from app.agents.state import VersionPilotState
 from app.agents.llm_client import merge_llm_usage
 from app.tools.rules_extractor import RulesExtractor
@@ -223,7 +224,12 @@ def evidence_node(state: VersionPilotState) -> dict:
     breaking_change_analysis = {
         "packages": breaking_changes_list,
         "findings": [
-            {**finding, "package": pkg_result.get("package", "unknown")}
+            {
+                **finding,
+                "package": pkg_result.get("package", "unknown"),
+                "from_version": pkg_result.get("from_version"),
+                "to_version": pkg_result.get("to_version"),
+            }
             for pkg_result in breaking_changes_list
             for finding in pkg_result.get("findings", [])
         ],
@@ -247,6 +253,29 @@ def evidence_node(state: VersionPilotState) -> dict:
         failed_steps.append("migration_planner")
     record_migration_check("migration_planner", migration_result.get("status", "ok"))
     migration_plan = migration_result if migration_result.get("status") == "ok" else {}
+
+    filter_result = filter_migration_plan(
+        repo_url=state["repo_url"],
+        migration_plan=migration_plan,
+        telemetry=telemetry,
+    )
+    telemetry = filter_result["telemetry"]
+    provenance.append(
+        {
+            "source": "migration_filter",
+            "timestamp": _now_iso(),
+            "status": filter_result.get("status", "ok"),
+            "reason": filter_result.get("reason", ""),
+            "candidate_count": filter_result.get("candidate_count", 0),
+            "kept_count": filter_result.get("kept_count", 0),
+            "dropped_count": filter_result.get("dropped_count", 0),
+        }
+    )
+    if filter_result.get("status") == "error":
+        record_migration_check("migration_filter", "error")
+    else:
+        record_migration_check("migration_filter", "skipped" if filter_result.get("status") == "skipped" else "ok")
+    migration_plan = filter_result["migration_plan"]
     migration_completeness = (
         round(migration_checks_complete / migration_checks_total, 2)
         if migration_checks_total

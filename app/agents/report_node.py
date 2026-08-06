@@ -77,10 +77,19 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
 
     migration_recommendations = []
     for step in steps:
+        package = step.get("package", "unknown")
+        confidence = step.get("confidence", "unknown")
+        version_span = step.get("version_span")
+        reason = (
+            f"type={step.get('type', 'unknown')}, package={package}, "
+            f"confidence={confidence}"
+        )
+        if version_span:
+            reason = f"{reason}, span={version_span}"
         migration_recommendations.append({
             "action": step.get("action", "Review migration step"),
             "priority": "high" if step.get("severity") == "high" else "medium",
-            "reason": f"type={step.get('type', 'unknown')}, package={step.get('package', 'unknown')}",
+            "reason": reason,
         })
 
     return {
