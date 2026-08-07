@@ -17,6 +17,7 @@ FOCUSED_TESTS = [
     "tests/unit/test_evaluate_scoring.py",
     "tests/unit/test_evaluate_migrations.py",
     "tests/unit/test_evaluate_reliability.py",
+    "tests/unit/test_evaluate_groundedness.py",
 ]
 
 

@@ -17,6 +17,7 @@ portfolio baseline results, measured limitations, and smoke-run evidence.
 | Basic real-repository smoke runs | Complete smoke baseline | 5 / 5 runs completed |
 | Agent-mode smoke run | Complete smoke baseline | 1 / 1 run completed |
 | Cost / latency telemetry | Complete smoke baseline | 1 agent run instrumented |
+| Groundedness eval | Complete portfolio baseline | 4 / 4 fixtures passed |
 
 ## Deprecated API Scanner
 
@@ -275,13 +276,43 @@ Notes:
 - `total_wall_ms` is end-to-end `invoke()` time; it can exceed the sum of
   `node_timings_ms` by a small graph-overhead margin.
 
+## Groundedness
+
+Command:
+
+```bash
+vpilot/bin/python -m eval.evaluate_groundedness \
+  eval/fixtures/groundedness \
+  --output eval/groundedness_report.json
+```
+
+Result:
+
+| Metric | Value |
+|---|---:|
+| Fixtures | 4 |
+| Passed fixtures | 4 |
+| Mean groundedness score | 0.75 |
+
+What is checked:
+
+- Every `key_finding` cites a deprecated-API symbol/package from state
+- Every `migration_recommendation` matches an AST-backed migration-plan step
+- Every `upstream_breaking_change_hint` matches a release-note-derived step
+- `health_score` / `risk_level` are passed through from state (or `Unverified`)
+
+One fixture (`hallucinated_report`) intentionally injects ungrounded claims and
+expects the checker to fail them.
+
 ## Pending Evaluations
 
-Phase 4 portfolio baseline items are complete. Next evaluation work:
+Phase 4 portfolio baseline items are complete, including groundedness.
 
-- Groundedness eval for the report node (`eval/evaluate_groundedness.py`):
-  every key finding and migration recommendation must trace to a
-  provenance-tracked state signal.
+Remaining operational evaluation / product work:
+
+- PR-comment GitHub Action for dependency-manifest PRs
+- Optional LangSmith tracing for pipeline inspection
+- Upgrade dry-run + test verification (end-to-end upgrade confidence)
 
 ## Current Limitations
 

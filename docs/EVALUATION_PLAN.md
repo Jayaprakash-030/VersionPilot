@@ -28,6 +28,7 @@ The published baseline results are recorded in `eval/EVAL_REPORT.md`.
 | Scoring behavior | 15 invariant checks | Monotonicity, determinism, trust behavior |
 | Controlled migrations | 3 representative cases | Detection, location, recommendation, tests |
 | Reliability | 10 failure scenarios | Correct fallback, misleading result count |
+| Groundedness | 4 report/state fixtures | Claim grounding rate, fixture pass rate |
 | Smoke runs | 5 basic, 1 agent | Completion and schema sanity |
 
 ## Deprecated API Scanner
@@ -155,6 +156,32 @@ Primary safety requirements:
 - critical missing evidence must not become verified `Low` risk
 - invalid LLM output must fall back to deterministic reporting
 - failed evidence steps must remain visible
+
+## Groundedness
+
+Groundedness fixtures live under:
+
+```text
+eval/fixtures/groundedness/
+```
+
+Each fixture provides a provenance-backed agent `state.json`. Fixtures may also
+include a static `report.json` to test detection of ungrounded claims.
+
+A report claim is grounded when:
+
+- key findings cite deprecated symbols/packages present in state
+- migration recommendations match AST-backed migration-plan steps
+- upstream hints match release-note-derived breaking-change steps
+- health score and risk level are factual pass-throughs from state
+
+Measured outputs:
+
+- total claims
+- grounded claims
+- ungrounded claims
+- groundedness score
+- fixture pass rate (including intentional hallucination fixtures)
 
 ## Smoke Runs
 

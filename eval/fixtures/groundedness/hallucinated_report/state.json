@@ -1,0 +1,38 @@
+{
+  "repo_url": "https://github.com/example/hallucinated",
+  "health_score": 70.0,
+  "risk_level": "Medium",
+  "critic_passed": true,
+  "data_completeness": 1.0,
+  "confidence_score": 0.9,
+  "deprecated_findings": [
+    {
+      "package": "flask",
+      "symbol": "flask.escape",
+      "file_path": "app.py",
+      "line": 5,
+      "replacement": "markupsafe.escape",
+      "severity": "high"
+    }
+  ],
+  "migration_plan": {
+    "total_steps": 1,
+    "effort_level": "low",
+    "steps": [
+      {
+        "type": "deprecated_api_replacement",
+        "package": "flask",
+        "symbol": "flask.escape",
+        "action": "Replace deprecated usage of `flask.escape` with `markupsafe.escape` (at app.py:5)",
+        "severity": "high",
+        "confidence": "ast_scan",
+        "occurrence_count": 1
+      }
+    ]
+  },
+  "breaking_change_analysis": {
+    "findings": [],
+    "packages": [],
+    "total_packages_analyzed": 0
+  }
+}

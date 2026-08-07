@@ -1,0 +1,26 @@
+{
+  "repo_url": "https://github.com/example/empty",
+  "health_score": 90.0,
+  "risk_level": "Low",
+  "critic_passed": true,
+  "data_completeness": 1.0,
+  "confidence_score": 0.9,
+  "deprecated_findings": [],
+  "migration_plan": {
+    "total_steps": 0,
+    "effort_level": "low",
+    "steps": []
+  },
+  "breaking_change_analysis": {
+    "findings": [],
+    "packages": [],
+    "total_packages_analyzed": 0
+  },
+  "provenance": [
+    {
+      "source": "deprecated_api_scan",
+      "status": "ok",
+      "rules_source": "no_rules_extracted"
+    }
+  ]
+}

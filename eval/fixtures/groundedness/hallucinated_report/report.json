@@ -1,0 +1,26 @@
+{
+  "summary": "Invented summary",
+  "health_score": 70.0,
+  "risk_level": "Medium",
+  "key_findings": [
+    {
+      "finding": "Deprecated API usage: totally.made.up.symbol at ghost.py:1",
+      "evidence": "package=ghostlib, occurrences=1",
+      "severity": "high"
+    }
+  ],
+  "migration_recommendations": [
+    {
+      "action": "Rewrite the entire networking stack with proprietary SDK",
+      "priority": "high",
+      "reason": "type=deprecated_api_replacement, package=ghostlib, confidence=ast_scan"
+    }
+  ],
+  "upstream_breaking_change_hints": [
+    {
+      "action": "Removed support for imaginary runtime XYZ",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=ghostlib, confidence=regex_heuristic"
+    }
+  ]
+}

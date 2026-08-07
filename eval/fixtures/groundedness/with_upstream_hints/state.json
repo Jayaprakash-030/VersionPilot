@@ -1,0 +1,43 @@
+{
+  "repo_url": "https://github.com/example/with-hints",
+  "health_score": 55.0,
+  "risk_level": "Medium",
+  "critic_passed": true,
+  "data_completeness": 1.0,
+  "confidence_score": 0.85,
+  "deprecated_findings": [],
+  "migration_plan": {
+    "total_steps": 1,
+    "effort_level": "low",
+    "steps": [
+      {
+        "type": "breaking_change_review",
+        "package": "urllib3",
+        "action": "Removed support for end-of-life Python 3.9.",
+        "severity": "high",
+        "confidence": "regex_heuristic",
+        "version_span": "1.26→2.7.0"
+      }
+    ]
+  },
+  "breaking_change_analysis": {
+    "findings": [
+      {
+        "category": "breaking_change",
+        "text": "Removed support for end-of-life Python 3.9.",
+        "severity": "high",
+        "package": "urllib3",
+        "confidence": "regex_heuristic"
+      }
+    ],
+    "packages": [],
+    "total_packages_analyzed": 1
+  },
+  "provenance": [
+    {
+      "source": "deprecated_api_scan",
+      "status": "ok",
+      "rules_source": "no_rules_extracted"
+    }
+  ]
+}
