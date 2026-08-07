@@ -9,6 +9,8 @@ from openai import OpenAI
 
 load_dotenv()
 
+from langsmith import traceable
+
 
 class LLMClient:
     """Thin OpenAI wrapper used by planner, critic, report, and extraction nodes."""
@@ -28,6 +30,7 @@ class LLMClient:
         self.last_model_used: str = ""
         self.cost: float = 0.0
 
+    @traceable(name="openai_call", run_type="llm")
     def call(
         self,
         system_prompt: str,
@@ -105,8 +108,12 @@ def merge_llm_usage(telemetry: dict, llm: LLMClient) -> dict:
     double-counted.
     """
     updated = dict(telemetry)
-    updated["input_tokens"] = int(updated.get("input_tokens", 0) or 0) + llm.total_input_tokens
-    updated["output_tokens"] = int(updated.get("output_tokens", 0) or 0) + llm.total_output_tokens
+    updated["input_tokens"] = (
+        int(updated.get("input_tokens", 0) or 0) + llm.total_input_tokens
+    )
+    updated["output_tokens"] = (
+        int(updated.get("output_tokens", 0) or 0) + llm.total_output_tokens
+    )
     updated["model"] = llm.last_model_used or llm.model
     updated["estimated_cost_usd"] = LLMClient.estimate_cost_usd(
         updated["input_tokens"],

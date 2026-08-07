@@ -10,6 +10,7 @@ config/*
 !config/model_registry.json
 data/
 eval/*.json
+eval/agent_run_repos.txt
 .DS_Store
 vpilot/
 .claude/

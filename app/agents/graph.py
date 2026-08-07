@@ -26,6 +26,7 @@ def should_retry_or_report(state: VersionPilotState) -> str:
 
 def with_timing(node_name, function):
     """Wrap a graph node to record its wall-clock duration in telemetry."""
+
     def wrapped(state):
         t0 = time.perf_counter()
         updates = function(state) or {}
@@ -91,7 +92,14 @@ def run_graph(
     )
 
     t0 = time.perf_counter()
-    final_state = compiled_graph.invoke(initial_state)
+    final_state = compiled_graph.invoke(
+        initial_state,
+        config={
+            "run_name": f"versionpilot: {repo_url}",
+            "tags": ["agent", "versionpilot"],
+            "metadata": {"repo_url": repo_url, "run_id": initial_state["run_id"]},
+        },
+    )
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
     telemetry = dict(final_state.get("telemetry") or {})
     telemetry["total_wall_ms"] = elapsed_ms
