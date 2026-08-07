@@ -23,6 +23,9 @@ Output format:
   "migration_recommendations": [
     {"action": "...", "priority": "high|medium|low", "reason": "..."}
   ],
+  "upstream_breaking_change_hints": [
+    {"action": "...", "priority": "high|medium|low", "reason": "..."}
+  ],
   "data_quality": {
     "completeness": <float>,
     "confidence": <float>,
@@ -34,9 +37,11 @@ Output format:
 
 Rules:
 - key_findings must cite specific values from the data (scores, counts, package names).
-- migration_recommendations must reference a finding or migration step from the data.
+- migration_recommendations must include only verified, code-grounded migration steps.
+- upstream_breaking_change_hints may include unverified release-note-derived review items.
 - If there are no findings, key_findings must be [].
 - If there are no migration steps, migration_recommendations must be [].
+- If there are no unverified release-note hints, upstream_breaking_change_hints must be [].
 - health_score and risk_level must be passed through exactly as given.
 """
 
@@ -59,23 +64,54 @@ def _rules_source_notice(state: VersionPilotState) -> str:
     )
 
 
-def _template_report(state: VersionPilotState, effective_risk: str | None = None) -> dict:
-    """Template-based fallback when LLM is unavailable."""
-    published_risk = effective_risk or state.get("risk_level", "unknown")
-    migration_plan = state.get("migration_plan") or {}
-    steps = migration_plan.get("steps", [])
-    deprecated_findings = state.get("deprecated_findings") or []
-    failed_steps = state.get("failed_steps") or []
+def _deduped_key_findings(deprecated_findings: list[dict]) -> list[dict]:
+    """Collapse repeated AST hits into one finding per package/symbol."""
+    groups: dict[tuple[str, str], dict] = {}
+    order: list[tuple[str, str]] = []
+    for finding in deprecated_findings:
+        package = str(finding.get("package") or "unknown")
+        symbol = str(finding.get("symbol") or "unknown")
+        key = (package, symbol)
+        file_path = finding.get("file_path", "unknown")
+        line = finding.get("line", "?")
+        if key not in groups:
+            groups[key] = {
+                "package": package,
+                "symbol": symbol,
+                "severity": finding.get("severity", "medium"),
+                "count": 0,
+                "sample": f"{file_path}:{line}",
+            }
+            order.append(key)
+        groups[key]["count"] += 1
 
-    key_findings = []
-    for f in deprecated_findings:
-        key_findings.append({
-            "finding": f"Deprecated API usage: {f.get('symbol', 'unknown')} in {f.get('file_path', 'unknown')}",
-            "evidence": f"package={f.get('package', 'unknown')}, line={f.get('line', '?')}",
-            "severity": f.get("severity", "medium"),
-        })
+    findings: list[dict] = []
+    for key in order:
+        group = groups[key]
+        count = group["count"]
+        if count == 1:
+            finding_text = (
+                f"Deprecated API usage: {group['symbol']} at {group['sample']}"
+            )
+        else:
+            finding_text = (
+                f"Deprecated API usage: {group['symbol']} "
+                f"({count} occurrences; e.g. {group['sample']})"
+            )
+        findings.append(
+            {
+                "finding": finding_text,
+                "evidence": f"package={group['package']}, occurrences={count}",
+                "severity": group["severity"],
+            }
+        )
+    return findings
 
-    migration_recommendations = []
+
+def _split_migration_outputs(steps: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Map migration-plan steps into verified recommendations vs upstream hints."""
+    migration_recommendations: list[dict] = []
+    upstream_breaking_change_hints: list[dict] = []
     for step in steps:
         package = step.get("package", "unknown")
         confidence = step.get("confidence", "unknown")
@@ -86,17 +122,40 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
         )
         if version_span:
             reason = f"{reason}, span={version_span}"
-        migration_recommendations.append({
+        occurrence_count = step.get("occurrence_count")
+        if isinstance(occurrence_count, int) and occurrence_count > 1:
+            reason = f"{reason}, occurrences={occurrence_count}"
+        item = {
             "action": step.get("action", "Review migration step"),
             "priority": "high" if step.get("severity") == "high" else "medium",
             "reason": reason,
-        })
+        }
+        if step.get("type") == "deprecated_api_replacement" or confidence == "ast_scan":
+            migration_recommendations.append(item)
+        else:
+            upstream_breaking_change_hints.append(item)
+    return migration_recommendations, upstream_breaking_change_hints
+
+
+def _template_report(state: VersionPilotState, effective_risk: str | None = None) -> dict:
+    """Template-based fallback when LLM is unavailable."""
+    published_risk = effective_risk or state.get("risk_level", "unknown")
+    migration_plan = state.get("migration_plan") or {}
+    steps = migration_plan.get("steps", [])
+    deprecated_findings = state.get("deprecated_findings") or []
+    failed_steps = state.get("failed_steps") or []
+
+    key_findings = _deduped_key_findings(deprecated_findings)
+    migration_recommendations, upstream_breaking_change_hints = _split_migration_outputs(
+        steps
+    )
 
     return {
         "summary": (
             f"Health score: {state.get('health_score', 0.0):.1f} ({published_risk} risk). "
             f"{len(deprecated_findings)} deprecated API finding(s), "
-            f"{len(steps)} migration step(s). "
+            f"{len(migration_recommendations)} verified migration recommendation(s), "
+            f"{len(upstream_breaking_change_hints)} upstream review hint(s). "
             f"Data completeness: {state.get('data_completeness', 0.0):.0%}."
             f"{_rules_source_notice(state)}"
         ),
@@ -104,6 +163,7 @@ def _template_report(state: VersionPilotState, effective_risk: str | None = None
         "risk_level": published_risk,
         "key_findings": key_findings,
         "migration_recommendations": migration_recommendations,
+        "upstream_breaking_change_hints": upstream_breaking_change_hints,
         "data_quality": {
             "completeness": state.get("data_completeness", 0.0),
             "confidence": state.get("confidence_score", 0.0),
@@ -155,6 +215,9 @@ def report_node(state: VersionPilotState) -> dict:
                 raise ValueError("LLM report missing or invalid 'key_findings'")
             if not isinstance(parsed.get("migration_recommendations"), list):
                 raise ValueError("LLM report missing or invalid 'migration_recommendations'")
+            if not isinstance(parsed.get("upstream_breaking_change_hints", []), list):
+                raise ValueError("LLM report missing or invalid 'upstream_breaking_change_hints'")
+            parsed.setdefault("upstream_breaking_change_hints", [])
             final_report = parsed
             trace.append({"node": "report", "status": "complete"})
         except Exception:
@@ -165,8 +228,14 @@ def report_node(state: VersionPilotState) -> dict:
         trace.append({"node": "report", "status": "fallback", "reason": "llm_unavailable_or_error"})
 
     # Overwrite factual fields from state — LLM must not alter these
+    deterministic = _template_report(state, effective_risk)
     final_report["run_id"] = state.get("run_id", "")
     final_report["health_score"] = state.get("health_score", 0.0)
+    final_report["key_findings"] = deterministic["key_findings"]
+    final_report["migration_recommendations"] = deterministic["migration_recommendations"]
+    final_report["upstream_breaking_change_hints"] = deterministic[
+        "upstream_breaking_change_hints"
+    ]
     final_report["data_quality"] = {
         "completeness": state.get("data_completeness", 0.0),
         "confidence": state.get("confidence_score", 0.0),

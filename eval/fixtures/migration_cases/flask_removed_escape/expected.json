@@ -12,7 +12,7 @@
     {
       "type": "deprecated_api_replacement",
       "symbol": "flask.escape",
-      "action": "markupsafe.escape",
+      "action": "Replace deprecated usage of `flask.escape` with `markupsafe.escape` (at app.py:5)",
       "severity": "high"
     }
   ]

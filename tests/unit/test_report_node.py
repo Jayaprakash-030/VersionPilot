@@ -8,7 +8,7 @@ from app.agents.report_node import _template_report, report_node
 from app.agents.state import create_initial_state
 
 _REQUIRED_KEYS = {"summary", "health_score", "risk_level", "key_findings",
-                  "migration_recommendations", "data_quality"}
+                  "migration_recommendations", "upstream_breaking_change_hints", "data_quality"}
 
 
 # ---------------------------------------------------------------------------
@@ -32,6 +32,7 @@ def _canned_report(health_score=72.0, risk_level="medium"):
         "migration_recommendations": [
             {"action": "Replace flask.ext usage", "priority": "high", "reason": "symbol removed in Flask 1.0"}
         ],
+        "upstream_breaking_change_hints": [],
         "data_quality": {"completeness": 1.0, "confidence": 0.9, "failed_steps": []},
     }
 
@@ -60,23 +61,61 @@ class TestTemplateReport:
         report = _template_report(state)
         assert len(report["key_findings"]) == 1
         assert "flask.ext" in report["key_findings"][0]["finding"]
+        assert "app.py:10" in report["key_findings"][0]["finding"]
 
     def test_migration_steps_become_recommendations(self):
         state = _state(migration_plan={
             "steps": [
                 {"action": "Replace flask.ext", "type": "deprecated_api_replacement",
-                 "package": "flask", "severity": "high"},
+                 "package": "flask", "severity": "high", "confidence": "ast_scan"},
             ]
         })
         report = _template_report(state)
         assert len(report["migration_recommendations"]) == 1
         assert report["migration_recommendations"][0]["priority"] == "high"
 
+    def test_release_note_only_steps_become_hints_not_recommendations(self):
+        state = _state(migration_plan={
+            "steps": [
+                {"action": "Removed support for Python 3.9", "type": "breaking_change_review",
+                 "package": "urllib3", "severity": "high", "confidence": "regex_heuristic",
+                 "version_span": "1.26→2.7.0"},
+            ]
+        })
+        report = _template_report(state)
+        assert report["migration_recommendations"] == []
+        assert len(report["upstream_breaking_change_hints"]) == 1
+        assert "urllib3" in report["upstream_breaking_change_hints"][0]["reason"]
+
+    def test_key_findings_are_deduped_by_package_and_symbol(self):
+        state = _state(
+            deprecated_findings=[
+                {
+                    "symbol": "fastparquet",
+                    "file_path": "tests/io/test_parquet.py",
+                    "line": 45,
+                    "package": "fastparquet",
+                    "severity": "high",
+                },
+                {
+                    "symbol": "fastparquet",
+                    "file_path": "tests/io/test_parquet.py",
+                    "line": 48,
+                    "package": "fastparquet",
+                    "severity": "high",
+                },
+            ]
+        )
+        report = _template_report(state)
+        assert len(report["key_findings"]) == 1
+        assert "2 occurrences" in report["key_findings"][0]["finding"]
+
     def test_empty_findings_produce_empty_lists(self):
         state = _state(deprecated_findings=[], migration_plan={"steps": []})
         report = _template_report(state)
         assert report["key_findings"] == []
         assert report["migration_recommendations"] == []
+        assert report["upstream_breaking_change_hints"] == []
 
     def test_data_quality_fields_present(self):
         state = _state(data_completeness=0.75, confidence_score=0.6,
@@ -97,6 +136,7 @@ class TestTemplateReport:
         report = _template_report(state)
         assert report["key_findings"] == []
         assert report["migration_recommendations"] == []
+        assert report["upstream_breaking_change_hints"] == []
 
     def test_no_rules_extracted_is_described_in_summary(self):
         state = _state(
@@ -326,3 +366,47 @@ class TestReportNodeLLM:
         assert "risk_level: Unverified" in user_prompt
         assert "Low risk" not in result["final_report"]["summary"]
         assert "Unverified risk" in result["final_report"]["summary"]
+
+    @patch("app.agents.report_node.LLMClient.is_available", return_value=True)
+    @patch("app.agents.report_node.LLMClient")
+    def test_llm_migration_lists_are_overwritten_from_plan(self, MockLLM, _mock_avail):
+        mock_instance = MagicMock()
+        canned = _canned_report()
+        canned["migration_recommendations"] = [
+            {"action": "Invented recommendation", "priority": "high", "reason": "hallucinated"}
+        ]
+        canned["upstream_breaking_change_hints"] = []
+        mock_instance.call.return_value = json.dumps(canned)
+        MockLLM.return_value = mock_instance
+
+        state = _state(
+            critic_passed=True,
+            migration_plan={
+                "steps": [
+                    {
+                        "action": "Replace deprecated usage of `flask.ext` with `flask_sqlalchemy` (at app.py:10)",
+                        "type": "deprecated_api_replacement",
+                        "package": "flask",
+                        "severity": "high",
+                        "confidence": "ast_scan",
+                        "occurrence_count": 1,
+                    },
+                    {
+                        "action": "Removed support for Python 3.9",
+                        "type": "breaking_change_review",
+                        "package": "urllib3",
+                        "severity": "high",
+                        "confidence": "regex_heuristic",
+                        "version_span": "1.26→2.7.0",
+                    },
+                ]
+            },
+        )
+        result = report_node(state)
+        recs = result["final_report"]["migration_recommendations"]
+        hints = result["final_report"]["upstream_breaking_change_hints"]
+        assert len(recs) == 1
+        assert "flask.ext" in recs[0]["action"]
+        assert "Invented recommendation" not in recs[0]["action"]
+        assert len(hints) == 1
+        assert "Python 3.9" in hints[0]["action"]

@@ -1,0 +1,44 @@
+{
+  "summary": "Overall dependency health is rated 73.6 with a Medium risk level. Security metrics show no critical/high issues (0 critical, 0 high) and 1 medium item, while the main migration concern is a high-severity bcrypt breaking change and a medium-severity Sphinx deprecation.",
+  "health_score": 73.6,
+  "risk_level": "Medium",
+  "key_findings": [],
+  "migration_recommendations": [],
+  "upstream_breaking_change_hints": [
+    {
+      "action": "Removed the ``BCRYPT_ALLOW_RUST_163`` environment variable.",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=bcrypt, confidence=regex_heuristic, span=4.1.1\u21925.0.0"
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 0.97,
+    "migration_analysis_failed_steps": [
+      "rules_extraction:Sphinx"
+    ],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "3e2d8f02f0d71502",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 1325.4880420281552,
+      "evidence": 42400.61091602547,
+      "scoring": 1.5867920010350645,
+      "critic": 974.8287920374423,
+      "report": 5751.988708041608
+    },
+    "total_wall_ms": 50459.256750007626,
+    "input_tokens": 12569,
+    "output_tokens": 1321,
+    "estimated_cost_usd": 0.00416505
+  }
+}

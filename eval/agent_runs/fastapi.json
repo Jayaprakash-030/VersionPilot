@@ -1,0 +1,52 @@
+{
+  "summary": "Health score: 72.4 (Medium risk). 0 deprecated API finding(s), 0 verified migration recommendation(s), 3 upstream review hint(s). Data completeness: 100%.",
+  "health_score": 72.43,
+  "risk_level": "Medium",
+  "key_findings": [],
+  "migration_recommendations": [],
+  "upstream_breaking_change_hints": [
+    {
+      "action": "This release adds several new features, including experimental support for inline typed dictionaries ([PEP 764](https://peps.python.org/pep-0764/)) and sentinels ([PEP 661](https://peps.python.org/pep-0661/)), and support for changes in Python 3.14. In addition, Python 3.8 is no longer supported.",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=typing-extensions, confidence=regex_heuristic, span=4.8.0\u21924.16.0"
+    },
+    {
+      "action": "Do not attempt to re-export names that have been removed from `typing`,",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=typing-extensions, confidence=regex_heuristic, span=4.8.0\u21924.16.0"
+    },
+    {
+      "action": "The `rfc3986` dependancy has been removed. (#2252)",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=httpx, confidence=regex_heuristic, span=0.23.0\u21920.28.1"
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 1.0,
+    "migration_analysis_failed_steps": [],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "11c8c436af6b9bd6",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 1210.133875021711,
+      "evidence": 54374.20204200316,
+      "scoring": 1.570124994032085,
+      "critic": 1119.3900000071153,
+      "report": 6389.791916997638
+    },
+    "total_wall_ms": 63100.1387090073,
+    "input_tokens": 32143,
+    "output_tokens": 2195,
+    "estimated_cost_usd": 0.00917235
+  }
+}

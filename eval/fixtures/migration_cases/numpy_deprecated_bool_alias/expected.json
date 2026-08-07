@@ -12,7 +12,7 @@
     {
       "type": "deprecated_api_replacement",
       "symbol": "numpy.bool",
-      "action": "bool",
+      "action": "Replace deprecated usage of `numpy.bool` with `bool` (at arrays.py:5)",
       "severity": "medium"
     }
   ]

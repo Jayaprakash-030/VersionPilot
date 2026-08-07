@@ -1,0 +1,48 @@
+{
+  "summary": "Overall dependency health is strong (health_score: 86.53, risk_level: Low), with perfect dependency and security scores (dependency_score: 100.0, security_score: 100.0). The only identified issues are medium-severity deprecation signals in typing-extensions regarding `typing_extensions.Sentinel` and related `deprecated` behavior.",
+  "health_score": 86.53,
+  "risk_level": "Low",
+  "key_findings": [
+    {
+      "finding": "Deprecated API usage: typing_extensions.Sentinel (2 occurrences; e.g. /var/folders/kz/fd_bt0nn6hxfh0hg7sjkr7180000gn/T/versionpilot-4zqe_twb/tests/test_annotated.py:11)",
+      "evidence": "package=typing-extensions, occurrences=2",
+      "severity": "medium"
+    }
+  ],
+  "migration_recommendations": [
+    {
+      "action": "Replace deprecated usage of `typing_extensions.Sentinel` with `typing_extensions.sentinel` (2 occurrences: versionpilot-4zqe_twb/tests/test_annotated.py:11, python/pydantic_core/__init__.py:6)",
+      "priority": "medium",
+      "reason": "type=deprecated_api_replacement, package=typing-extensions, confidence=ast_scan, occurrences=2"
+    }
+  ],
+  "upstream_breaking_change_hints": [],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 1.0,
+    "migration_analysis_failed_steps": [],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "51594b6f16bd35b5",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 2396.0378330084495,
+      "evidence": 23803.471666004043,
+      "scoring": 0.338084006216377,
+      "critic": 1022.3543749889359,
+      "report": 6818.530416989233
+    },
+    "total_wall_ms": 34046.97133303853,
+    "input_tokens": 7545,
+    "output_tokens": 1205,
+    "estimated_cost_usd": 0.0030152499999999997
+  }
+}

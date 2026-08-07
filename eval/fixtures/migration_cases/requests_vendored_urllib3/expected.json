@@ -19,7 +19,7 @@
     {
       "type": "deprecated_api_replacement",
       "symbol": "requests.packages.urllib3",
-      "action": "urllib3",
+      "action": "Replace deprecated usage of `requests.packages.urllib3` with `urllib3` (2 occurrences: client.py:1, client.py:5)",
       "severity": "high"
     }
   ]

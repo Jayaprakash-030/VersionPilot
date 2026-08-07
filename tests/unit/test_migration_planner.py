@@ -38,10 +38,74 @@ class TestMigrationPlanner(unittest.TestCase):
         self.assertIn("deprecated_api_replacement", step_types)
         self.assertIn("breaking_change_review", step_types)
 
+        deprecated = next(s for s in plan["steps"] if s["type"] == "deprecated_api_replacement")
+        self.assertIn("Use flask_sqlalchemy", deprecated["action"])
+        self.assertIn("app.py:10", deprecated["action"])
+
         breaking = next(s for s in plan["steps"] if s["type"] == "breaking_change_review")
         self.assertEqual(breaking["package"], "urllib3")
         self.assertEqual(breaking["version_span"], "1.26→2.7.0")
         self.assertEqual(breaking["confidence"], "regex_heuristic")
+
+    def test_deprecated_api_empty_replacement_creates_deterministic_action(self) -> None:
+        planner = MigrationPlanner()
+        deprecated_findings = [
+            {
+                "package": "pandas",
+                "symbol": "fastparquet",
+                "file_path": "pandas/tests/io/test_parquet.py",
+                "line": 45,
+                "replacement": "",
+                "severity": "high",
+            }
+        ]
+        plan = planner.generate_plan(deprecated_findings, {"findings": []})
+        self.assertEqual(plan["total_steps"], 1)
+        step = plan["steps"][0]
+        self.assertEqual(step["type"], "deprecated_api_replacement")
+        self.assertIn("`fastparquet`", step["action"])
+        self.assertIn("test_parquet.py:45", step["action"])
+        self.assertIn("no replacement", step["action"])
+
+    def test_bare_symbol_replacement_is_polished_into_sentence(self) -> None:
+        planner = MigrationPlanner()
+        plan = planner.generate_plan(
+            [
+                {
+                    "package": "typing-extensions",
+                    "symbol": "typing_extensions.Sentinel",
+                    "file_path": "tests/test_annotated.py",
+                    "line": 11,
+                    "replacement": "typing_extensions.sentinel",
+                    "severity": "medium",
+                }
+            ],
+            {"findings": []},
+        )
+        action = plan["steps"][0]["action"]
+        self.assertIn("Replace deprecated usage of `typing_extensions.Sentinel`", action)
+        self.assertIn("with `typing_extensions.sentinel`", action)
+        self.assertIn("test_annotated.py:11", action)
+
+    def test_dedupes_repeated_deprecated_findings(self) -> None:
+        planner = MigrationPlanner()
+        findings = [
+            {
+                "package": "fastparquet",
+                "symbol": "fastparquet",
+                "file_path": f"/tmp/versionpilot-xyz/pandas/tests/io/test_parquet.py",
+                "line": line,
+                "replacement": "",
+                "severity": "high",
+            }
+            for line in (45, 48, 49, 345)
+        ]
+        plan = planner.generate_plan(findings, {"findings": []})
+        self.assertEqual(plan["total_steps"], 1)
+        step = plan["steps"][0]
+        self.assertEqual(step["occurrence_count"], 4)
+        self.assertIn("4 occurrences", step["action"])
+        self.assertIn("io/test_parquet.py", step["action"])
 
     def test_dedupes_and_caps_breaking_steps_per_package(self) -> None:
         planner = MigrationPlanner()

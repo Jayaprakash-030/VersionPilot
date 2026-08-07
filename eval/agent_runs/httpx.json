@@ -1,9 +1,10 @@
 {
-  "summary": "Health score: 43.4 (High risk). 0 deprecated API finding(s), 5 migration step(s). Data completeness: 100%.",
+  "summary": "Health score: 43.4 (High risk). 0 deprecated API finding(s), 0 verified migration recommendation(s), 5 upstream review hint(s). Data completeness: 100%.",
   "health_score": 43.39,
   "risk_level": "High",
   "key_findings": [],
-  "migration_recommendations": [
+  "migration_recommendations": [],
+  "upstream_breaking_change_hints": [
     {
       "action": "Removed support for Python 2.7, 3.5, and 3.6",
       "priority": "high",
@@ -50,15 +51,15 @@
   "telemetry": {
     "model": "gpt-5.4-nano",
     "node_timings_ms": {
-      "planner": 1925.751707982272,
-      "evidence": 86337.18408300774,
-      "scoring": 1.379416964482516,
-      "critic": 750.0344170257449,
-      "report": 8429.309000028297
+      "planner": 1192.4442499876022,
+      "evidence": 82766.0230420297,
+      "scoring": 0.8019169908948243,
+      "critic": 1353.7398329935968,
+      "report": 6722.234249988105
     },
-    "total_wall_ms": 97450.99045796087,
-    "input_tokens": 45262,
-    "output_tokens": 3401,
-    "estimated_cost_usd": 0.01330365
+    "total_wall_ms": 92046.98849999113,
+    "input_tokens": 45333,
+    "output_tokens": 3314,
+    "estimated_cost_usd": 0.0132091
   }
 }

@@ -1,0 +1,77 @@
+{
+  "summary": "Health score: 71.5 (Medium risk). 11 deprecated API finding(s), 2 verified migration recommendation(s), 3 upstream review hint(s). Data completeness: 100%.",
+  "health_score": 71.55,
+  "risk_level": "Medium",
+  "key_findings": [
+    {
+      "finding": "Deprecated API usage: pyarrow.dataset.dataset at /var/folders/kz/fd_bt0nn6hxfh0hg7sjkr7180000gn/T/versionpilot-2mvpy9it/pandas/tests/io/test_parquet.py:247",
+      "evidence": "package=pyarrow, occurrences=1",
+      "severity": "medium"
+    },
+    {
+      "finding": "Deprecated API usage: fastparquet (10 occurrences; e.g. /var/folders/kz/fd_bt0nn6hxfh0hg7sjkr7180000gn/T/versionpilot-2mvpy9it/pandas/tests/io/test_parquet.py:45)",
+      "evidence": "package=fastparquet, occurrences=10",
+      "severity": "high"
+    }
+  ],
+  "migration_recommendations": [
+    {
+      "action": "Replace deprecated usage of `pyarrow.dataset.dataset` with `pyarrow.dataset.open_dataset()` (at tests/io/test_parquet.py:247)",
+      "priority": "medium",
+      "reason": "type=deprecated_api_replacement, package=pyarrow, confidence=ast_scan"
+    },
+    {
+      "action": "Review deprecated usage of `fastparquet` (10 occurrences; e.g. tests/io/test_parquet.py:45, tests/io/test_parquet.py:1473, tests/io/test_parquet.py:1496); no replacement specified in extracted rules",
+      "priority": "high",
+      "reason": "type=deprecated_api_replacement, package=fastparquet, confidence=ast_scan, occurrences=10"
+    }
+  ],
+  "upstream_breaking_change_hints": [
+    {
+      "action": "`numpy.distutils` has been removed",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=numpy, confidence=regex_heuristic, span=1.26.0\u21922.5.1"
+    },
+    {
+      "action": "`numpy._core.numerictypes.maximum_sctype` has been removed.",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=numpy, confidence=regex_heuristic, span=1.26.0\u21922.5.1"
+    },
+    {
+      "action": "`numpy.row_stack` has been removed in favor of `numpy.vstack`.",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=numpy, confidence=regex_heuristic, span=1.26.0\u21922.5.1"
+    }
+  ],
+  "data_quality": {
+    "completeness": 1.0,
+    "confidence": 0.9,
+    "failed_steps": [],
+    "migration_analysis_completeness": 0.98,
+    "migration_analysis_failed_steps": [
+      "rules_extraction:numpy",
+      "rules_extraction:pytest"
+    ],
+    "deprecated_api_rules_source": "dynamic"
+  },
+  "run_id": "48fb7f8cb4e5138b",
+  "critic": {
+    "passed": true,
+    "feedback": "",
+    "retry_count": 0
+  },
+  "telemetry": {
+    "model": "gpt-5.4-nano",
+    "node_timings_ms": {
+      "planner": 1369.1615830175579,
+      "evidence": 240031.36920800898,
+      "scoring": 0.6714999908581376,
+      "critic": 1018.8560000387952,
+      "report": 8484.813250019215
+    },
+    "total_wall_ms": 250915.13441700954,
+    "input_tokens": 64052,
+    "output_tokens": 3590,
+    "estimated_cost_usd": 0.017297899999999998
+  }
+}

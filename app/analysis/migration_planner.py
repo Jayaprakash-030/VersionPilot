@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, List
 
 
@@ -8,6 +9,7 @@ class MigrationPlanner:
 
     _MAX_BREAKING_STEPS = 8
     _MAX_BREAKING_PER_PACKAGE = 3
+    _MAX_SAMPLE_LOCATIONS = 3
 
     def generate_plan(
         self,
@@ -16,22 +18,7 @@ class MigrationPlanner:
     ) -> Dict[str, Any]:
         """Build an ordered migration plan from deprecated API and breaking-change findings."""
         steps: List[Dict[str, Any]] = []
-
-        # Step 1: address explicit deprecated API findings.
-        for finding in deprecated_findings:
-            steps.append(
-                {
-                    "priority": 1,
-                    "type": "deprecated_api_replacement",
-                    "package": finding.get("package", "unknown"),
-                    "symbol": finding.get("symbol", "unknown"),
-                    "file_path": finding.get("file_path", "<unknown>"),
-                    "line": finding.get("line", 0),
-                    "action": finding.get("replacement", "Replace deprecated API usage"),
-                    "severity": finding.get("severity", "medium"),
-                    "confidence": "ast_scan",
-                }
-            )
+        steps.extend(self._build_deprecated_steps(deprecated_findings))
 
         # Step 2: changelog heuristic hits (review hints, not proven code impact).
         findings = [
@@ -87,6 +74,143 @@ class MigrationPlanner:
             "effort_level": effort_level,
             "steps": steps,
         }
+
+    def _build_deprecated_steps(
+        self, deprecated_findings: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Collapse duplicate AST findings into polished, user-facing steps."""
+        groups: dict[tuple[str, str, str], dict[str, Any]] = {}
+        order: list[tuple[str, str, str]] = []
+
+        for finding in deprecated_findings:
+            package = str(finding.get("package") or "unknown")
+            symbol = str(finding.get("symbol") or "unknown")
+            replacement = finding.get("replacement")
+            replacement_text = (
+                str(replacement).strip()
+                if isinstance(replacement, str) and replacement.strip()
+                else ""
+            )
+            key = (package, symbol, replacement_text)
+            file_path = str(finding.get("file_path") or "<unknown>")
+            line = finding.get("line", 0)
+            line_num = line if isinstance(line, int) else 0
+            location = self._format_location(file_path, line_num)
+
+            if key not in groups:
+                groups[key] = {
+                    "package": package,
+                    "symbol": symbol,
+                    "replacement": replacement_text,
+                    "severity": finding.get("severity", "medium"),
+                    "locations": [],
+                    "file_path": file_path,
+                    "line": line_num,
+                }
+                order.append(key)
+
+            group = groups[key]
+            if location and location not in group["locations"]:
+                group["locations"].append(location)
+
+        steps: list[dict[str, Any]] = []
+        for key in order:
+            group = groups[key]
+            occurrence_count = len(group["locations"]) or 1
+            action = self._format_deprecated_action(
+                symbol=group["symbol"],
+                replacement=group["replacement"],
+                locations=group["locations"],
+                occurrence_count=occurrence_count,
+            )
+            steps.append(
+                {
+                    "priority": 1,
+                    "type": "deprecated_api_replacement",
+                    "package": group["package"],
+                    "symbol": group["symbol"],
+                    "file_path": group["file_path"],
+                    "line": group["line"],
+                    "action": action,
+                    "severity": group["severity"],
+                    "confidence": "ast_scan",
+                    "occurrence_count": occurrence_count,
+                    "sample_locations": group["locations"][: self._MAX_SAMPLE_LOCATIONS],
+                }
+            )
+        return steps
+
+    def _format_deprecated_action(
+        self,
+        *,
+        symbol: str,
+        replacement: str,
+        locations: list[str],
+        occurrence_count: int,
+    ) -> str:
+        """Build a readable action sentence for a verified deprecated-API finding."""
+        location_suffix = self._location_suffix(locations, occurrence_count)
+        if not replacement:
+            return (
+                f"Review deprecated usage of `{symbol}`{location_suffix}; "
+                "no replacement specified in extracted rules"
+            )
+
+        if self._looks_like_bare_symbol(replacement):
+            return (
+                f"Replace deprecated usage of `{symbol}` with `{replacement}`"
+                f"{location_suffix}"
+            )
+
+        # Already a natural-language note — keep it, then add location context.
+        base = replacement.rstrip(".")
+        return f"{base}{location_suffix}"
+
+    def _location_suffix(self, locations: list[str], occurrence_count: int) -> str:
+        if not locations:
+            if occurrence_count > 1:
+                return f" ({occurrence_count} occurrences)"
+            return ""
+
+        samples = locations[: self._MAX_SAMPLE_LOCATIONS]
+        sample_text = ", ".join(samples)
+        if occurrence_count > len(samples):
+            return (
+                f" ({occurrence_count} occurrences; e.g. {sample_text})"
+            )
+        if occurrence_count == 1:
+            return f" (at {sample_text})"
+        return f" ({occurrence_count} occurrences: {sample_text})"
+
+    @staticmethod
+    def _format_location(file_path: str, line: int) -> str:
+        short = MigrationPlanner._short_path(file_path)
+        if short == "<unknown>":
+            return ""
+        if isinstance(line, int) and line > 0:
+            return f"{short}:{line}"
+        return short
+
+    @staticmethod
+    def _short_path(file_path: str) -> str:
+        """Keep the last few path parts so temp clone prefixes stay readable."""
+        if not file_path or file_path == "<unknown>":
+            return "<unknown>"
+        parts = Path(file_path).parts
+        if len(parts) <= 3:
+            return str(Path(*parts)) if parts else file_path
+        return str(Path(*parts[-3:]))
+
+    @staticmethod
+    def _looks_like_bare_symbol(text: str) -> bool:
+        """True when replacement is a symbol/path, not a full instruction sentence."""
+        cleaned = text.strip().strip("`")
+        if not cleaned or " " in cleaned:
+            return False
+        lower = cleaned.casefold()
+        if lower.startswith(("use ", "replace ", "migrate ", "switch ")):
+            return False
+        return True
 
     def _breaking_rank(self, item: dict[str, Any]) -> int:
         """Prefer concrete API/runtime removals when capping noisy regex hits."""

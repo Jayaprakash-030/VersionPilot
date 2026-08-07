@@ -1,9 +1,10 @@
 {
-  "summary": "Health score: 68.0 (Medium risk). 0 deprecated API finding(s), 3 migration step(s). Data completeness: 100%.",
-  "health_score": 68.05,
+  "summary": "Health score: 67.7 (Medium risk). 0 deprecated API finding(s), 0 verified migration recommendation(s), 4 upstream review hint(s). Data completeness: 100%.",
+  "health_score": 67.69,
   "risk_level": "Medium",
   "key_findings": [],
-  "migration_recommendations": [
+  "migration_recommendations": [],
+  "upstream_breaking_change_hints": [
     {
       "action": "Removed support for end-of-life Python 3.9. (https://github.com/urllib3/urllib3/issues/3720)",
       "priority": "high",
@@ -11,6 +12,11 @@
     },
     {
       "action": "Removed support for end-of-life PyPy3.10. (https://github.com/urllib3/urllib3/issues/4979)",
+      "priority": "high",
+      "reason": "type=breaking_change_review, package=urllib3, confidence=regex_heuristic, span=1.26\u21922.7.0"
+    },
+    {
+      "action": "Restore previously removed `HTTPResponse.getheaders()` and `HTTPResponse.getheader()` methods. (#3731)",
       "priority": "high",
       "reason": "type=breaking_change_review, package=urllib3, confidence=regex_heuristic, span=1.26\u21922.7.0"
     },
@@ -26,7 +32,7 @@
     "failed_steps": [],
     "migration_analysis_completeness": 0.96,
     "migration_analysis_failed_steps": [
-      "rules_extraction:Sphinx"
+      "rules_extraction:charset_normalizer"
     ],
     "deprecated_api_rules_source": "dynamic"
   },
@@ -39,15 +45,15 @@
   "telemetry": {
     "model": "gpt-5.4-nano",
     "node_timings_ms": {
-      "planner": 2090.2345000067726,
-      "evidence": 36453.02091597114,
-      "scoring": 1.5421659918501973,
-      "critic": 3936.6269579622895,
-      "report": 7209.10575002199
+      "planner": 2423.154875054024,
+      "evidence": 36875.57662499603,
+      "scoring": 1.8164999783039093,
+      "critic": 1107.556500006467,
+      "report": 7763.047834043391
     },
-    "total_wall_ms": 49702.24999997299,
-    "input_tokens": 19156,
-    "output_tokens": 2242,
-    "estimated_cost_usd": 0.0066337
+    "total_wall_ms": 48178.66316600703,
+    "input_tokens": 19308,
+    "output_tokens": 2761,
+    "estimated_cost_usd": 0.007312849999999999
   }
 }
